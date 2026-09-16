@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import VetCard from '@/components/VetCard';
 import HeroSearch from '@/components/HeroSearch';
+import VetMapExplorer from '@/components/VetMapExplorer';
 import { 
   ShieldCheck, 
   Search, 
@@ -38,6 +39,17 @@ export default async function HomePage() {
     },
     take: 6,
     orderBy: [{ destaqueBusca: 'desc' }, { visualizacoesCount: 'desc' }]
+  });
+
+  // Todos os veterinários verificados para o mapa interativo
+  const todosVets = await prisma.veterinario.findMany({
+    where: { crmvStatus: 'VERIFICADO' },
+    include: {
+      enderecos: true,
+      especialidades: true,
+      procedimentos: { where: { ativo: true } },
+      avaliacoes: true
+    }
   });
 
   // Veterinários recém-cadastrados (Novos perfis no VetBra)
@@ -230,6 +242,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E RAIO EM KM */}
+      <VetMapExplorer vets={todosVets} />
 
       {/* VETERINÁRIOS EM DESTAQUE (DO BANCO POSTGRESQL REAL) */}
       <section className="py-20 bg-white">
