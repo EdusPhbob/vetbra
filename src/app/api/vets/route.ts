@@ -39,9 +39,14 @@ export async function GET(request: Request) {
     }
 
     if (cidade && cidade !== 'Todas') {
+      const termoLimpo = cidade.replace(/[^a-zA-Z0-9\s]/g, '').trim();
       where.enderecos = {
         some: {
-          cidade: { contains: cidade, mode: 'insensitive' }
+          OR: [
+            { cidade: { contains: cidade, mode: 'insensitive' } },
+            { bairro: { contains: cidade, mode: 'insensitive' } },
+            { cep: { contains: termoLimpo, mode: 'insensitive' } }
+          ]
         }
       };
     }

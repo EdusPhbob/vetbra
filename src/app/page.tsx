@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import VetCard from '@/components/VetCard';
+import HeroSearch from '@/components/HeroSearch';
 import { 
   ShieldCheck, 
   Search, 
@@ -102,96 +103,99 @@ export default async function HomePage() {
               Conectamos você a clínicas de excelência, especialistas renomados, hospitais 24h e veterinários a domicílio em todo o Brasil.
             </p>
 
-            {/* BARRA DE BUSCA PRINCIPAL */}
-            <div className="pt-6 max-w-3xl mx-auto">
-              <form action="/buscar" method="GET" className="bg-white p-3 sm:p-4 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-                
-                {/* Campo Especialidade */}
-                <div className="space-y-1 px-3 py-1">
-                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                    O que seu pet precisa?
-                  </label>
-                  <select 
-                    name="especialidade" 
-                    className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden cursor-pointer"
-                  >
-                    <option value="Todas">Todas as Especialidades</option>
-                    <option value="Clínica Geral">Clínica Geral</option>
-                    <option value="Cardiologia">Cardiologia</option>
-                    <option value="Dermatologia">Dermatologia</option>
-                    <option value="Ortopedia">Ortopedia</option>
-                    <option value="Oftalmologia">Oftalmologia</option>
-                    <option value="Animais Exóticos e Silvestres">Silvestres & Exóticos</option>
-                    <option value="Cirurgia Geral">Cirurgia Geral</option>
-                  </select>
-                </div>
-
-                {/* Campo Cidade/Estado */}
-                <div className="space-y-1 px-3 py-1 sm:border-l border-slate-200">
-                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                    Localização (Cidade/UF)
-                  </label>
-                  <input
-                    type="text"
-                    name="cidade"
-                    placeholder="Ex: São Paulo, SP"
-                    className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden placeholder:text-slate-400"
-                  />
-                </div>
-
-                {/* Botão de Busca */}
-                <div className="flex items-center">
-                  <button
-                    type="submit"
-                    className="w-full h-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#147A44] to-[#1B85B8] hover:from-[#11693A] hover:to-[#16709C] text-white font-bold text-sm shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Search className="w-4 h-4" />
-                    Buscar Vets
-                  </button>
-                </div>
-
-              </form>
-
-              {/* Filtros rápidos abaixo da busca */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-xs font-semibold text-slate-500">
-                <span className="text-slate-400">Atalhos:</span>
-                <Link href="/buscar?atende24h=true" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 transition-colors flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-rose-500" /> Plantão 24 Horas
-                </Link>
-                <Link href="/buscar?domiciliar=true" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center gap-1">
-                  <Home className="w-3 h-3 text-blue-500" /> Atendimento Domiciliar
-                </Link>
-                <Link href="/buscar?especialidade=Dermatologia" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-emerald-300 hover:text-emerald-700 transition-colors">
-                  Dermatologia Pet
-                </Link>
-              </div>
-
-            </div>
+            {/* BARRA DE BUSCA PRINCIPAL COM GEOLOCALIZAÇÃO E CEP */}
+            <HeroSearch />
 
           </div>
         </div>
       </section>
 
-      {/* STATS STRIP */}
-      <section className="bg-slate-900 text-white py-8 border-y border-slate-800">
+      {/* STATS STRIP (CLEAN & DINÂMICO ESTILO APPLE) */}
+      <section className="bg-slate-50/70 border-y border-slate-200/80 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-3xl font-black text-emerald-400">+3.500</div>
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mt-1">Veterinários Cadastrados</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* Card 1: Vets Cadastrados */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Ativos hoje
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
+                  +3.500
+                </div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  Veterinários Cadastrados
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-white">100%</div>
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mt-1">CRMV Auditado no CFMV</div>
+
+            {/* Card 2: CRMV Auditado */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                  CFMV / Siscad
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl font-black text-[#147A44] tracking-tight">
+                  100%
+                </div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  CRMV Auditado no CFMV
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-blue-400">+120 mil</div>
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mt-1">Pets Atendidos</div>
+
+            {/* Card 3: Pets Atendidos */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Users className="w-5 h-5" />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                  Em todo o Brasil
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                  +120 mil
+                </div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  Pets Atendidos
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-amber-400">4.9 ★</div>
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mt-1">Avaliação dos Tutores</div>
+
+            {/* Card 4: Avaliação */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
+                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
+                  5 Estrelas
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
+                  4.9 <span className="text-amber-400 text-2xl">★</span>
+                </div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  Avaliação dos Tutores
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
       </section>
