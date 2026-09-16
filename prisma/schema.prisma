@@ -98,6 +98,7 @@ model Veterinario {
   procedimentos         Procedimento[]
   avaliacoes            Avaliacao[]
   auditorias            CrmvAuditoriaLog[]
+  artigos               Artigo[]
 
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
@@ -171,3 +172,24 @@ model CrmvAuditoriaLog {
   motivo        String?
   createdAt     DateTime    @default(now())
 }
+
+model Artigo {
+  id            String      @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  titulo        String
+  slug          String      @unique
+  resumo        String
+  conteudo      String      @db.Text
+  fotoUrl       String?
+  categoria     String      @default("Clínica Geral")
+  publicado     Boolean     @default(true)
+  visualizacoes Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([veterinarioId])
+  @@index([categoria])
+}
+
