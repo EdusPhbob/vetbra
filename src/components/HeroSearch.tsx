@@ -17,6 +17,7 @@ import {
 
 export default function HeroSearch() {
   const router = useRouter();
+  const [tipoPet, setTipoPet] = useState('Todos');
   const [especialidade, setEspecialidade] = useState('Todas');
   const [localizacao, setLocalizacao] = useState('');
   const [loadingLocation, setLoadingLocation] = useState(false);
@@ -109,6 +110,9 @@ export default function HeroSearch() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
+    if (tipoPet && tipoPet !== 'Todos') {
+      params.append('tipoPet', tipoPet);
+    }
     if (especialidade && especialidade !== 'Todas') {
       params.append('especialidade', especialidade);
     }
@@ -121,11 +125,11 @@ export default function HeroSearch() {
   };
 
   return (
-    <div className="pt-6 max-w-3xl mx-auto space-y-3">
+    <div className="pt-6 max-w-4xl mx-auto space-y-3">
       
       {/* BANNER FLUTUANTE DE SOLICITAÇÃO AMIGÁVEL DE LOCALIZAÇÃO */}
       {showLocationPrompt && (
-        <div className="bg-emerald-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="bg-emerald-[#147A44]/90 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span className="font-semibold">Deseja encontrar veterinários próximos à sua localização?</span>
@@ -134,7 +138,7 @@ export default function HeroSearch() {
             <button
               type="button"
               onClick={handleDetectLocation}
-              className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] transition-colors cursor-pointer"
+              className="px-3 py-1 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-[11px] transition-colors cursor-pointer"
             >
               Sim, detectar
             </button>
@@ -152,22 +156,43 @@ export default function HeroSearch() {
         </div>
       )}
 
-      {/* FORMULÁRIO PRINCIPAL DE BUSCA */}
+      {/* FORMULÁRIO PRINCIPAL DE BUSCA CENTRALIZADO E CLEAN */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-3 sm:p-4 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left"
+        className="bg-white p-3 sm:p-4 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left"
       >
-        {/* Campo Especialidade */}
+        {/* Campo Qual é o seu pet? */}
         <div className="space-y-1 px-3 py-1">
           <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-            O que seu pet precisa?
+            Qual é o seu pet?
+          </label>
+          <select 
+            value={tipoPet}
+            onChange={(e) => setTipoPet(e.target.value)}
+            className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden cursor-pointer"
+          >
+            <option value="Todos">Todos os pets 🐾</option>
+            <option value="Caes">Cães 🐶</option>
+            <option value="Gatos">Gatos 🐱</option>
+            <option value="Aves">Aves 🦜</option>
+            <option value="Exoticos">Silvestres & Exóticos 🐇</option>
+            <option value="Roedores">Roedores 🐹</option>
+            <option value="Repteis">Répteis 🦎</option>
+            <option value="Equinos">Equinos 🐴</option>
+          </select>
+        </div>
+
+        {/* Campo Especialidade */}
+        <div className="space-y-1 px-3 py-1 sm:border-l border-slate-200">
+          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+            O que precisa?
           </label>
           <select 
             value={especialidade}
             onChange={(e) => setEspecialidade(e.target.value)}
             className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden cursor-pointer"
           >
-            <option value="Todas">Todas as Especialidades</option>
+            <option value="Todas">Todas Especialidades</option>
             <option value="Clínica Geral">Clínica Geral</option>
             <option value="Cardiologia">Cardiologia</option>
             <option value="Dermatologia">Dermatologia Pet</option>
@@ -181,16 +206,16 @@ export default function HeroSearch() {
         </div>
 
         {/* Campo Localização / CEP */}
-        <div className="space-y-1 px-3 py-1 sm:border-l border-slate-200 relative">
+        <div className="space-y-1 px-3 py-1 lg:border-l border-slate-200 relative">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              CEP ou Cidade/Bairro
+              CEP ou Cidade
             </label>
             <button
               type="button"
               onClick={handleDetectLocation}
               disabled={loadingLocation}
-              className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 hover:underline cursor-pointer disabled:opacity-50"
+              className="text-[10px] font-bold text-[#147A44] hover:text-emerald-800 flex items-center gap-1 hover:underline cursor-pointer disabled:opacity-50"
               title="Detectar automaticamente minha cidade ou bairro"
             >
               {loadingLocation ? (
@@ -207,7 +232,7 @@ export default function HeroSearch() {
               type="text"
               value={localizacao}
               onChange={handleLocationChange}
-              placeholder="Digite o CEP (ex: 01424-001) ou Cidade"
+              placeholder="Ex: 01424-001 ou SP"
               className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden placeholder:text-slate-400"
             />
             {cepLoading && (

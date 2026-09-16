@@ -66,13 +66,20 @@ export default function Footer() {
 
           {/* Coluna 4 - Identidade e Marca VetBra */}
           <div className="space-y-4 col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center text-white font-black shadow-xs">
-                <Stethoscope className="w-4 h-4" />
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo-vetbra.jpg"
+                alt="VetBra Logo Oficial"
+                className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs"
+              />
+              <div className="flex flex-col">
+                <span className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                  Vet<span className="text-[#147A44]">Bra</span>
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                  Veterinária Mais Perto
+                </span>
               </div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">
-                Vet<span className="text-emerald-700">Bra</span>
-              </span>
             </div>
 
             <div className="text-xs text-slate-500 space-y-1 leading-relaxed">

@@ -12,11 +12,13 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Logo VetBra */}
+          {/* Logo VetBra Oficial (Formato Quadrado) */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#147A44] to-[#1B85B8] flex items-center justify-center text-white shadow-md shadow-emerald-700/20 group-hover:scale-105 transition-transform">
-              <Stethoscope className="w-6 h-6" />
-            </div>
+            <img
+              src="/logo-vetbra.jpg"
+              alt="VetBra Logo Oficial"
+              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm group-hover:scale-105 transition-transform"
+            />
             <div className="flex flex-col">
               <div className="flex items-center gap-1">
                 <span className="text-2xl font-black tracking-tight text-slate-900">Vet<span className="text-[#147A44]">Bra</span></span>
@@ -25,7 +27,7 @@ export default function Header() {
                 </span>
               </div>
               <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase -mt-0.5">
-                Portal & CRMV Verificado
+                Veterinária Mais Perto De Você
               </span>
             </div>
           </Link>
