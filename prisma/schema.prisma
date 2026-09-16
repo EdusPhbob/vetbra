@@ -1,0 +1,173 @@
+// Prisma schema for VetBra
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VET
+  ADMIN
+}
+
+enum CrmvStatus {
+  PENDENTE
+  VERIFICADO
+  EM_ANALISE
+  SUSPENSO
+  REJEITADO
+}
+
+enum PlanoTipo {
+  BASICO
+  PROFISSIONAL
+  PREMIUM
+}
+
+enum AssinaturaStatus {
+  ATIVO
+  PENDENTE
+  CANCELADO
+  INADIMPLENTE
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  senhaHash     String
+  nome          String
+  role          Role         @default(VET)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  veterinario   Veterinario?
+}
+
+model Veterinario {
+  id                    String            @id @default(uuid())
+  userId                String            @unique
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  slug                  String            @unique
+  nomeCompleto          String
+  nomeSocialOuClinica   String?
+  cpfCnpj               String?
+  telefone              String?
+  whatsapp              String
+  bio                   String?
+  tempoExperienciaAnos  Int?              @default(0)
+  fotoPerfilUrl         String?
+  bannerUrl             String?
+  
+  // CRMV & Validação
+  crmvNumero            String
+  crmvUf                String
+  crmvStatus            CrmvStatus        @default(PENDENTE)
+  crmvValidade          DateTime?
+  crmvComprovanteUrl    String?
+  crmvUltimaVerificacao DateTime?
+  crmvNotasAuditoria    String?
+  
+  // Tipo de Atendimento
+  tipoEstabelecimento   String            @default("Clinica") // Autonomo, Clinica, Hospital 24h
+  atende24h             Boolean           @default(false)
+  atendeDomiciliar      Boolean           @default(false)
+  atendeEmergencia      Boolean           @default(false)
+  horarioFuncionamento  String?           @default("Segunda a Sexta - 08:00 às 18:00")
+  tiposPets             String[]          @default(["Cães", "Gatos"])
+  
+  // Redes Sociais
+  instagram             String?
+  facebook              String?
+  site                  String?
+
+  // Monetização / Plano
+  plano                 PlanoTipo         @default(BASICO)
+  statusAssinatura      AssinaturaStatus  @default(ATIVO)
+  destaqueBusca         Boolean           @default(false)
+  visualizacoesCount    Int               @default(0)
+  contatosWhatsappCount Int               @default(0)
+
+  // Relações
+  enderecos             Endereco[]
+  especialidades        Especialidade[]
+  procedimentos         Procedimento[]
+  avaliacoes            Avaliacao[]
+  auditorias            CrmvAuditoriaLog[]
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model Endereco {
+  id               String      @id @default(uuid())
+  veterinarioId    String
+  veterinario      Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  cep              String
+  logradouro       String
+  numero           String
+  complemento      String?
+  bairro           String
+  cidade           String
+  estado           String      // SP, RJ, etc.
+  latitude         Float?
+  longitude        Float?
+  raioKmAtendimento Int?       @default(15) // Para atendimento a domicílio
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Especialidade {
+  id            String        @id @default(uuid())
+  nome          String        @unique // Ex: Clínica Geral, Dermatologia, Ortopedia
+  descricao     String?
+  veterinarios  Veterinario[]
+
+  createdAt     DateTime      @default(now())
+}
+
+model Procedimento {
+  id               String      @id @default(uuid())
+  veterinarioId    String
+  veterinario      Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  nome             String      // Ex: Consulta Clínica Geral, Vacina V10, Castração
+  categoria        String      // Consulta, Vacinação, Cirurgia, Exame, Emergência, Estética
+  preco            Float       // Valor em R$
+  precoSobConsulta Boolean     @default(false)
+  descricao        String?
+  tempoMedioMinutos Int?
+
+  ativo            Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Avaliacao {
+  id            String      @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  nomeTutor     String
+  nota          Int         // 1 a 5
+  comentario    String
+  createdAt     DateTime    @default(now())
+}
+
+model CrmvAuditoriaLog {
+  id            String      @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  adminEmail    String
+  statusAnterior CrmvStatus
+  statusNovo    CrmvStatus
+  motivo        String?
+  createdAt     DateTime    @default(now())
+}
