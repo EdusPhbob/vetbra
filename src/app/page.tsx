@@ -13,7 +13,6 @@ import {
   Clock, 
   Home, 
   Award, 
-  CheckCircle2, 
   ChevronRight,
   TrendingUp,
   Users
@@ -217,88 +216,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* COMO FUNCIONA A AUDITORIA DE CRMV */}
-      <section id="como-funciona" className="py-20 bg-slate-900 text-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Segurança & Ética Profissional</span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Como o VetBra protege a saúde do seu pet</h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              O exercício ilegal da profissão coloca animais em risco. Na VetBra, nenhum profissional é exibido sem aprovação prévia.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-slate-800/60 p-8 rounded-3xl border border-slate-700/80 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-lg">
-                1
-              </div>
-              <h3 className="text-lg font-bold text-white">Cadastro do Profissional</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                O médico veterinário ou gestor da clínica informa seu CRMV, estado de registro (UF), envia a cédula de identidade profissional e cadastra seus procedimentos.
-              </p>
-            </div>
-
-            <div className="bg-slate-800/60 p-8 rounded-3xl border border-slate-700/80 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg">
-                2
-              </div>
-              <h3 className="text-lg font-bold text-white">Auditoria Oficial no CFMV</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Nossa equipe de moderação confere a inscrição no Siscad do Conselho Federal de Medicina Veterinária, atestando status ativo e anuidade regular.
-              </p>
-            </div>
-
-            <div className="bg-slate-800/60 p-8 rounded-3xl border border-slate-700/80 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-black text-lg">
-                3
-              </div>
-              <h3 className="text-lg font-bold text-white">Selo de Verificado Concedido</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                O veterinário ganha o selo oficial VetBra, aparece nas primeiras posições de busca e o tutor tem a certeza de um atendimento capacitado.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA PARA CLÍNICAS & VETERINÁRIOS (MONETIZAÇÃO SAAS) */}
-      <section className="py-20 bg-gradient-to-tr from-emerald-800 via-[#147A44] to-[#1B85B8] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-900/40 backdrop-blur-md rounded-3xl p-8 sm:p-14 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="space-y-4 max-w-xl">
-              <span className="px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
-                Para Médicos Veterinários & Clínicas
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-                Receba mais pacientes em seu consultório todos os dias
-              </h2>
-              <p className="text-sm text-slate-200 leading-relaxed">
-                Tenha um perfil oficial com CRMV verificado, gerencie seus procedimentos e receba contatos diretos no seu WhatsApp de tutores da sua região.
-              </p>
-              <div className="flex flex-wrap gap-4 text-xs font-semibold text-emerald-200">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Sem intermediários nas consultas</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Painel SaaS exclusivo de métricas</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-              <Link
-                href="/planos"
-                className="px-8 py-4 rounded-2xl bg-white text-slate-950 font-bold text-sm hover:bg-slate-100 shadow-xl transition-all text-center cursor-pointer"
-              >
-                Conhecer Planos
-              </Link>
-              <Link
-                href="/cadastro"
-                className="px-8 py-4 rounded-2xl bg-emerald-700/60 hover:bg-emerald-700 border border-white/20 text-white font-bold text-sm shadow-xl transition-all text-center cursor-pointer"
-              >
-                Cadastrar Consultório
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <Footer />
     </div>
