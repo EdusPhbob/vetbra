@@ -185,6 +185,7 @@ export default async function VetProfilePage({ params }: Props) {
                       veterinarioId={vet.id}
                       crmvNumero={vet.crmvNumero}
                       crmvUf={vet.crmvUf}
+                      status={vet.crmvStatus}
                     />
                   </div>
 
@@ -373,25 +374,47 @@ export default async function VetProfilePage({ params }: Props) {
           <div className="space-y-6">
             
             {/* CARD DE VERIFICAÇÃO CRMV */}
-            <div className="bg-emerald-50/70 rounded-3xl p-6 border border-emerald-200/80 space-y-3">
-              <div className="flex items-center gap-2 text-[#147A44] font-bold text-sm">
-                <ShieldCheck className="w-5 h-5" />
-                Auditoria de Registro CFMV
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Este profissional possui registro regular perante o Conselho Regional de Medicina Veterinária de <strong>{vet.crmvUf}</strong>.
-              </p>
-              <div className="pt-2 border-t border-emerald-200/60 text-xs space-y-1 text-slate-700">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Registro:</span>
-                  <span className="font-mono font-bold">{formatCrmv(vet.crmvNumero, vet.crmvUf)}</span>
+            {vet.crmvStatus === 'VERIFICADO' ? (
+              <div className="bg-emerald-50/70 rounded-3xl p-6 border border-emerald-200/80 space-y-3">
+                <div className="flex items-center gap-2 text-[#147A44] font-bold text-sm">
+                  <ShieldCheck className="w-5 h-5" />
+                  Auditoria de Registro CFMV
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Status:</span>
-                  <span className="text-emerald-700 font-bold">Ativo & Regularizado</span>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Este profissional possui registro regular perante o Conselho Regional de Medicina Veterinária de <strong>{vet.crmvUf}</strong> e fotos de documentação aprovadas.
+                </p>
+                <div className="pt-2 border-t border-emerald-200/60 text-xs space-y-1 text-slate-700">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Registro:</span>
+                    <span className="font-mono font-bold">{formatCrmv(vet.crmvNumero, vet.crmvUf)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Status:</span>
+                    <span className="text-emerald-700 font-bold">Ativo & Regularizado</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-amber-50/70 rounded-3xl p-6 border border-amber-200/80 space-y-3">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                  <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
+                  Auditoria de Documentação em Análise
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  O registro CRMV <strong>{formatCrmv(vet.crmvNumero, vet.crmvUf)}</strong> está em processo de verificação documental e checagem de fotos junto ao CRMV-{vet.crmvUf}.
+                </p>
+                <div className="pt-2 border-t border-amber-200/60 text-xs space-y-1 text-slate-700">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Registro:</span>
+                    <span className="font-mono font-bold">{formatCrmv(vet.crmvNumero, vet.crmvUf)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Status:</span>
+                    <span className="text-amber-700 font-bold">Em Análise / Homologação</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* DETALHES DE ATENDIMENTO */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 text-xs">

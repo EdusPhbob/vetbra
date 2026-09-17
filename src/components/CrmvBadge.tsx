@@ -10,6 +10,7 @@ interface CrmvBadgeProps {
   crmvUf: string;
   className?: string;
   size?: 'sm' | 'md';
+  status?: string;
 }
 
 export default function CrmvBadge({
@@ -17,7 +18,8 @@ export default function CrmvBadge({
   crmvNumero,
   crmvUf,
   className = '',
-  size = 'md'
+  size = 'md',
+  status = 'VERIFICADO'
 }: CrmvBadgeProps) {
   const handleClick = () => {
     try {
@@ -31,6 +33,41 @@ export default function CrmvBadge({
   };
 
   const url = getCfmvConsultaUrl(crmvNumero, crmvUf);
+  const isVerificado = status === 'VERIFICADO';
+
+  if (!isVerificado) {
+    if (size === 'sm') {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleClick}
+          title="Registro em fase de auditoria e validação documental"
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100/90 border border-amber-300 text-amber-800 text-[11px] font-bold transition-all group ${className}`}
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>CRMV {formatCrmv(crmvNumero, crmvUf)} Em Análise</span>
+          <ExternalLink className="w-2.5 h-2.5 text-amber-600 opacity-60" />
+        </a>
+      );
+    }
+
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleClick}
+        title="Registro em fase de auditoria e validação documental de fotos e CRMV"
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 hover:bg-amber-100/90 border border-amber-300 text-amber-800 text-xs font-bold transition-all group cursor-pointer ${className}`}
+      >
+        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        <span>CRMV {formatCrmv(crmvNumero, crmvUf)} Em Análise no CFMV</span>
+        <ExternalLink className="w-3 h-3 text-amber-600 opacity-60" />
+      </a>
+    );
+  }
 
   if (size === 'sm') {
     return (

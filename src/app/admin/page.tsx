@@ -32,7 +32,10 @@ import {
   MessageCircle,
   Activity,
   Check,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { formatCrmv, getCfmvConsultaUrl } from '@/lib/crmv';
 
@@ -55,6 +58,16 @@ export default function AdminCrmvModerationPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [processingAvaliacaoId, setProcessingAvaliacaoId] = useState<string | null>(null);
   const [processingActionId, setProcessingActionId] = useState<string | null>(null);
+
+  // Modal de Auditoria Visual de Fotos CRMV
+  const [previewModal, setPreviewModal] = useState<{
+    url: string;
+    tipo: string;
+    vetId: string;
+    vetNome: string;
+    crmvNumero: string;
+    crmvUf: string;
+  } | null>(null);
 
   // Resposta a tickets
   const [replyingTicketId, setReplyingTicketId] = useState<string | null>(null);
@@ -128,7 +141,7 @@ export default function AdminCrmvModerationPage() {
     loadFinanceiro();
   }, []);
 
-  const handleUpdateStatus = async (veterinarioId: string, novoStatus: string) => {
+  const handleUpdateStatus = async (veterinarioId: string, novoStatus: string, motivo?: string) => {
     setProcessingId(veterinarioId);
     try {
       const res = await fetch('/api/admin/crmv', {
@@ -138,17 +151,27 @@ export default function AdminCrmvModerationPage() {
           veterinarioId,
           novoStatus,
           validade: novoStatus === 'VERIFICADO' ? new Date('2027-12-31').toISOString() : undefined,
-          notas: `Moderação via Painel Admin VetBra: ${novoStatus}`
+          notas: motivo || `Moderação via Painel Admin VetBra: ${novoStatus}`
         })
       });
 
       if (res.ok) {
         await loadVets();
+        if (previewModal?.vetId === veterinarioId) {
+          setPreviewModal(null);
+        }
       }
     } catch (err) {
       console.error('Erro ao atualizar status CRMV:', err);
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleRejectCrmv = (veterinarioId: string) => {
+    const motivo = window.prompt('Informe o motivo da rejeição ou pendência documental (ex: Fotos ilegíveis, divergência no CFMV):');
+    if (motivo !== null) {
+      handleUpdateStatus(veterinarioId, 'REJEITADO', motivo);
     }
   };
 
@@ -554,6 +577,138 @@ export default function AdminCrmvModerationPage() {
 
                       </div>
 
+                      {/* AUDITORIA VISUAL DE FOTOS E DOCUMENTOS CRMV */}
+                      <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <FileText className="w-4 h-4 text-emerald-600" />
+                            Documentação & Fotos Comprobatórias (Auditoria CFMV):
+                          </span>
+                          {isVerificado ? (
+                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Fotos Auditadas & Selo Verde Ativo
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" /> Auditoria Visual Pendente
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          {/* Carteira CRMV Frente/Verso */}
+                          {vet.documentosCrmv?.filter((d: any) => d.tipo === 'CARTEIRA_FRENTE' || d.tipo === 'CARTEIRA_VERSO').length > 0 ? (
+                            vet.documentosCrmv
+                              .filter((d: any) => d.tipo === 'CARTEIRA_FRENTE' || d.tipo === 'CARTEIRA_VERSO')
+                              .map((doc: any) => (
+                                <button
+                                  key={doc.id}
+                                  type="button"
+                                  onClick={() => setPreviewModal({
+                                    url: doc.arquivoUrl,
+                                    tipo: doc.tipo === 'CARTEIRA_FRENTE' ? 'Carteira CRMV (Frente)' : 'Carteira CRMV (Verso)',
+                                    vetId: vet.id,
+                                    vetNome: vet.nomeCompleto,
+                                    crmvNumero: vet.crmvNumero,
+                                    crmvUf: vet.crmvUf
+                                  })}
+                                  className="group relative flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer text-left"
+                                >
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 relative border border-slate-100">
+                                    <img src={doc.arquivoUrl} alt="CRMV" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                                    </div>
+                                  </div>
+                                  <div className="pr-2">
+                                    <span className="text-xs font-bold text-slate-800 block group-hover:text-emerald-700">
+                                      {doc.tipo === 'CARTEIRA_FRENTE' ? 'Carteira CRMV' : 'CRMV Verso'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                      <Eye className="w-3 h-3" /> Ver em Alta Resolução
+                                    </span>
+                                  </div>
+                                </button>
+                              ))
+                          ) : (
+                            <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Sem foto da carteira CRMV
+                            </span>
+                          )}
+
+                          {/* Selfie com CRMV */}
+                          {vet.documentosCrmv?.filter((d: any) => d.tipo === 'SELFIE_COM_DOCUMENTO').length > 0 ? (
+                            vet.documentosCrmv
+                              .filter((d: any) => d.tipo === 'SELFIE_COM_DOCUMENTO')
+                              .map((doc: any) => (
+                                <button
+                                  key={doc.id}
+                                  type="button"
+                                  onClick={() => setPreviewModal({
+                                    url: doc.arquivoUrl,
+                                    tipo: 'Selfie Segurando a Carteira CRMV',
+                                    vetId: vet.id,
+                                    vetNome: vet.nomeCompleto,
+                                    crmvNumero: vet.crmvNumero,
+                                    crmvUf: vet.crmvUf
+                                  })}
+                                  className="group relative flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer text-left"
+                                >
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 relative border border-slate-100">
+                                    <img src={doc.arquivoUrl} alt="Selfie" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                                    </div>
+                                  </div>
+                                  <div className="pr-2">
+                                    <span className="text-xs font-bold text-slate-800 block group-hover:text-emerald-700">
+                                      Selfie com Carteira
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                      <Eye className="w-3 h-3" /> Ver em Alta Resolução
+                                    </span>
+                                  </div>
+                                </button>
+                              ))
+                          ) : (
+                            <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Sem selfie com documento
+                            </span>
+                          )}
+
+                          {/* Foto de Perfil */}
+                          {vet.fotoPerfilUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewModal({
+                                url: vet.fotoPerfilUrl,
+                                tipo: 'Foto do Perfil (Confronto Facial)',
+                                vetId: vet.id,
+                                vetNome: vet.nomeCompleto,
+                                crmvNumero: vet.crmvNumero,
+                                crmvUf: vet.crmvUf
+                              })}
+                              className="group relative flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer text-left"
+                            >
+                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 relative border border-slate-100">
+                                <img src={vet.fotoPerfilUrl} alt="Foto Perfil" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                                </div>
+                              </div>
+                              <div className="pr-2">
+                                <span className="text-xs font-bold text-slate-800 block group-hover:text-emerald-700">
+                                  Foto de Perfil
+                                </span>
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                  <Eye className="w-3 h-3" /> Comparar Rosto
+                                </span>
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
                       {/* BOTÕES DE MODERAÇÃO E CONTROLE TOTAL */}
                       <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -574,10 +729,24 @@ export default function AdminCrmvModerationPage() {
                             <button
                               onClick={() => handleUpdateStatus(vet.id, 'VERIFICADO')}
                               disabled={processingId === vet.id}
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                              title="Aprova fotos e ativa o selo verde do CRMV/CFMV"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              Aprovar CRMV
+                              Aprovar Fotos e Liberar CFMV Verde
+                            </button>
+                          )}
+
+                          {/* Rejeitar CRMV */}
+                          {!isVerificado && (
+                            <button
+                              onClick={() => handleRejectCrmv(vet.id)}
+                              disabled={processingId === vet.id}
+                              className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Rejeita os documentos por ilegibilidade ou inconsistência"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Rejeitar Documentos
                             </button>
                           )}
 
@@ -1340,6 +1509,73 @@ export default function AdminCrmvModerationPage() {
         )}
 
       </main>
+
+      {/* MODAL LIGHTBOX DE AUDITORIA DE FOTOS CRMV */}
+      {previewModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Cabeçalho */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-600" />
+                  {previewModal.tipo}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Dr(a). {previewModal.vetNome} • CRMV: <span className="font-mono font-bold text-slate-700">{formatCrmv(previewModal.crmvNumero, previewModal.crmvUf)}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                title="Fechar visualizador"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Visualizador de Imagem */}
+            <div className="flex-1 overflow-auto p-6 bg-slate-900/5 flex items-center justify-center min-h-[360px] max-h-[65vh]">
+              <img
+                src={previewModal.url}
+                alt={previewModal.tipo}
+                className="max-h-[60vh] max-w-full object-contain rounded-2xl shadow-md border border-slate-200"
+              />
+            </div>
+
+            {/* Rodapé de Ações de Auditoria */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-between gap-3">
+              <a
+                href={getCfmvConsultaUrl(previewModal.crmvNumero, previewModal.crmvUf)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
+              >
+                <ExternalLink className="w-4 h-4" /> Checar Dados no Siscad CFMV
+              </a>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleRejectCrmv(previewModal.vetId)}
+                  disabled={processingId === previewModal.vetId}
+                  className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <XCircle className="w-4 h-4" /> Rejeitar Documento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateStatus(previewModal.vetId, 'VERIFICADO')}
+                  disabled={processingId === previewModal.vetId}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Aprovar Fotos & Liberar Selo Verde
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
