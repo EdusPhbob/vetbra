@@ -90,7 +90,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
   // Configurações padrão solicitadas: Google Ruas, Mapa Térmico ativo por padrão
   const [mapStyle, setMapStyle] = useState<'ruas' | 'satelite' | 'relevo'>('ruas'); // Google Ruas
   const [modoVisualizacao, setModoVisualizacao] = useState<'MARCADORES' | 'TERMAL'>('TERMAL'); // Mapa Térmico
-  const [mostrarAreas, setMostrarAreas] = useState(true);
+  const [mostrarAreas, setMostrarAreas] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Escuta evento customizado disparado pelo campo de busca/CEP ou GPS para centralizar instantaneamente
@@ -588,21 +588,6 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
                 <span>Mapa Térmico</span>
               </button>
             </div>
-
-            {/* Alternador de Círculos / Áreas de Cobertura */}
-            <button
-              type="button"
-              onClick={() => setMostrarAreas(!mostrarAreas)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
-                mostrarAreas 
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800' 
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-              title="Mostrar ou ocultar círculos de cobertura de atendimento dos veterinários"
-            >
-              <span>⭕</span>
-              <span className="hidden sm:inline">{mostrarAreas ? 'Círculos: Ativos' : 'Círculos: Ocultos'}</span>
-            </button>
 
             {/* Filtros por Modalidade */}
             <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-xs">
