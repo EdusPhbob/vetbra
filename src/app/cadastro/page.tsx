@@ -103,7 +103,8 @@ function CadastroContent() {
 
     // Etapa 3: Estabelecimento & Atendimento
     nomeClinica: '',
-    tipoEstabelecimento: 'Clínica',
+    tipoEstabelecimento: 'Clínica Veterinária Fixa',
+    tiposEstabelecimento: ['Clínica Veterinária Fixa'],
     meiosTransporte: ['Carro / PetMóvel'],
     permiteVetMovelApp: true,
     raioAtendimentoKm: 15,
@@ -153,6 +154,26 @@ function CadastroContent() {
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  // Manipulação dos tipos de estabelecimento (múltipla escolha / checkbox)
+  const handleTipoEstabelecimentoToggle = (tipo: string) => {
+    setForm(prev => {
+      const existe = prev.tiposEstabelecimento.includes(tipo);
+      let atualizados: string[];
+      if (existe) {
+        atualizados = prev.tiposEstabelecimento.filter(t => t !== tipo);
+      } else {
+        atualizados = [...prev.tiposEstabelecimento, tipo];
+      }
+      return {
+        ...prev,
+        tiposEstabelecimento: atualizados,
+        tipoEstabelecimento: atualizados.join(', '),
+        atende24h: atualizados.includes('Hospital Veterinário 24h') ? true : prev.atende24h,
+        atendeDomiciliar: atualizados.includes('Atendimento Domiciliar / VetMóvel') ? true : prev.atendeDomiciliar
+      };
+    });
   };
 
   // Manipulação dos meios de transporte (múltipla escolha)
@@ -294,6 +315,10 @@ function CadastroContent() {
       }
       setEtapa(3);
     } else if (etapa === 3) {
+      if (!form.tiposEstabelecimento || form.tiposEstabelecimento.length === 0) {
+        setErroMsg('Selecione ao menos um Tipo de Estabelecimento para continuar.');
+        return;
+      }
       if (form.meiosTransporte.length === 0) {
         setErroMsg('Assinale pelo menos 1 Meio de Transporte / Deslocamento.');
         return;
@@ -788,32 +813,60 @@ function CadastroContent() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Nome do Consultório ou Nome Fantasia</label>
-                      <input
-                        type="text"
-                        name="nomeClinica"
-                        value={form.nomeClinica}
-                        onChange={handleChange}
-                        placeholder="Ex: Clínica Veterinária São Francisco / Dr. Roberto Home Care"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
-                      />
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Nome do Consultório ou Nome Fantasia</label>
+                    <input
+                      type="text"
+                      name="nomeClinica"
+                      value={form.nomeClinica}
+                      onChange={handleChange}
+                      placeholder="Ex: Clínica Veterinária São Francisco / Dr. Roberto Home Care"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* TIPO DE ESTABELECIMENTO (MÚLTIPLA ESCOLHA / CHECKBOXES) */}
+                  <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 block">
+                        Tipo de Estabelecimento *
+                        <span className="text-[10px] text-slate-400 font-normal ml-1">(Você pode ticar mais de uma opção)</span>
+                      </label>
+                      {form.tiposEstabelecimento.length === 0 && (
+                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                          Selecione pelo menos 1 opção
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Tipo de Estabelecimento *</label>
-                      <select
-                        name="tipoEstabelecimento"
-                        value={form.tipoEstabelecimento}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
-                      >
-                        <option value="Clínica Veterinária Fixa">🏥 Clínica Veterinária Fixa</option>
-                        <option value="Consultório Fixo">🏥 Consultório Fixo</option>
-                        <option value="Hospital Veterinário 24h">🏥 Hospital Veterinário 24h</option>
-                        <option value="Atendimento Domiciliar / VetMóvel">🚗 Atendimento Domiciliar / VetMóvel</option>
-                      </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {[
+                        { id: 'Clínica Veterinária Fixa', label: '🏥 Clínica Veterinária Fixa', desc: 'Estrutura física completa com consultórios e exames' },
+                        { id: 'Consultório Fixo', label: '🩺 Consultório Fixo', desc: 'Atendimento ambulatorial e consultas com hora marcada' },
+                        { id: 'Hospital Veterinário 24h', label: '🏨 Hospital Veterinário 24h', desc: 'Pronto atendimento emergencial e internação 24 horas' },
+                        { id: 'Atendimento Domiciliar / VetMóvel', label: '🚗 Atendimento Domiciliar / VetMóvel', desc: 'Visitas em domicílio, vacinas e cuidados no local' }
+                      ].map(item => {
+                        const checked = form.tiposEstabelecimento.includes(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                              checked ? 'bg-emerald-50 border-emerald-300 text-slate-900 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => handleTipoEstabelecimentoToggle(item.id)}
+                              className="mt-0.5 w-4 h-4 text-emerald-600 rounded-sm"
+                            />
+                            <div>
+                              <span className="text-xs font-bold block">{item.label}</span>
+                              <span className="text-[10px] text-slate-500 block">{item.desc}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 

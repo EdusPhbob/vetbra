@@ -66,6 +66,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'O número do endereço principal é obrigatório.' }, { status: 400 });
     }
 
+    const finalTipoEstabelecimento = Array.isArray(tipoEstabelecimento)
+      ? tipoEstabelecimento.filter(Boolean).join(', ')
+      : (typeof tipoEstabelecimento === 'string' && tipoEstabelecimento.trim() ? tipoEstabelecimento : 'Clínica Veterinária Fixa');
+
+    if (!finalTipoEstabelecimento || (Array.isArray(tipoEstabelecimento) && tipoEstabelecimento.length === 0)) {
+      return NextResponse.json({ error: 'Selecione ao menos um tipo de estabelecimento.' }, { status: 400 });
+    }
+
     if (!meiosTransporte || meiosTransporte.length === 0) {
       return NextResponse.json({ error: 'Selecione pelo menos 1 meio de transporte / deslocamento para o mapa.' }, { status: 400 });
     }
@@ -213,7 +221,7 @@ export async function POST(request: Request) {
         crmvValidade: dataValidadeCrmv,
         crmvStatus: CrmvStatus.PENDENTE,
         // Atendimento & Mobilidade
-        tipoEstabelecimento: tipoEstabelecimento || 'Clínica Veterinária Fixa',
+        tipoEstabelecimento: finalTipoEstabelecimento,
         meioTransporte: meiosTransporte[0] || 'Carro',
         meiosTransporte: meiosTransporte,
         raioAtendimentoKm: parseInt(String(raioAtendimentoKm)) || 15,
