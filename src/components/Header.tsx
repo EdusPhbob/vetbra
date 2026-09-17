@@ -57,12 +57,6 @@ export default function Header() {
             >
               Como Funciona
             </Link>
-            <Link 
-              href="/admin" 
-              className="text-xs font-bold text-emerald-200/90 hover:text-white transition-colors uppercase tracking-wider"
-            >
-              Moderação CRMV
-            </Link>
           </nav>
 
           {/* Right Actions */}

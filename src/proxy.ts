@@ -37,6 +37,11 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set('reason', 'auth_required');
       return NextResponse.redirect(loginUrl);
     }
+
+    // Se for Administrador tentando acessar o dashboard do médico, transfere para o painel de moderação /admin
+    if (session.role === 'ADMIN' && pathname === '/dashboard') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
   }
 
   return NextResponse.next();

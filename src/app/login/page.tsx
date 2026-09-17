@@ -22,7 +22,7 @@ import {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const redirectParam = searchParams.get('redirect');
   const reason = searchParams.get('reason');
 
   const [loginOrEmail, setLoginOrEmail] = useState('');
@@ -90,9 +90,16 @@ function LoginForm() {
       }
 
       // Sucesso no login! Redirecionamento completo do navegador para atualizar os cookies de sessão
-      const destino = (redirectPath && redirectPath !== '/login' && redirectPath !== '/')
-        ? redirectPath
-        : (data.redirectTo || (data.user?.role === 'ADMIN' ? '/admin' : '/dashboard'));
+      let destino = '/dashboard';
+      if (data.user?.role === 'ADMIN') {
+        // Administrador autenticado: transfere imediatamente para a área administrativa
+        destino = (redirectParam && redirectParam.startsWith('/admin')) ? redirectParam : '/admin';
+      } else {
+        // Veterinário comum
+        destino = (redirectParam && redirectParam !== '/login' && redirectParam !== '/' && !redirectParam.startsWith('/admin'))
+          ? redirectParam
+          : (data.redirectTo || '/dashboard');
+      }
 
       window.location.href = destino;
     } catch (err: any) {
