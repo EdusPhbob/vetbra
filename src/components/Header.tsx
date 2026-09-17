@@ -76,11 +76,11 @@ export default function Header() {
             </Link>
 
             <Link
-              href="/buscar"
+              href="/cadastro"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-[#147A44] bg-white hover:bg-emerald-50 shadow-md transition-all hover:scale-[1.02]"
             >
-              <Search className="w-3.5 h-3.5 text-[#147A44]" />
-              Encontrar Vet
+              <Stethoscope className="w-3.5 h-3.5 text-[#147A44]" />
+              Novo Aqui? Cadastre-se
             </Link>
           </div>
 
@@ -129,11 +129,11 @@ export default function Header() {
                 Área do Veterinário
               </Link>
               <Link
-                href="/buscar"
+                href="/cadastro"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full text-center py-2.5 rounded-xl text-xs font-bold text-[#147A44] bg-white"
               >
-                Encontrar Vet Agora
+                Novo Aqui? Cadastre-se
               </Link>
             </div>
           </div>
