@@ -36,6 +36,15 @@ export default function HeroSearch() {
     }
   }, []);
 
+  const scrollToMapSection = () => {
+    setTimeout(() => {
+      const mapElement = document.getElementById('mapa-vets');
+      if (mapElement) {
+        mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 200);
+  };
+
   // Obter localização via GPS do Navegador
   const handleDetectLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -65,10 +74,12 @@ export default function HeroSearch() {
           const localFinal = `${cidade}, ${ufSigla}`;
           setLocalizacao(localFinal);
           setLocationStatus(`📍 Localização detectada: ${localFinal}`);
+          scrollToMapSection();
         } catch (err) {
           console.error('Erro na geocodificação:', err);
           setLocalizacao('São Paulo, SP');
           setLocationStatus('Localização aproximada definida: São Paulo, SP');
+          scrollToMapSection();
         } finally {
           setLoadingLocation(false);
         }
@@ -98,6 +109,7 @@ export default function HeroSearch() {
           const resultado = `${data.localidade}, ${data.uf} (${data.bairro})`;
           setLocalizacao(resultado);
           setLocationStatus(`✓ CEP Encontrado: ${data.bairro}, ${data.localidade}/${data.uf}`);
+          scrollToMapSection();
         }
       } catch (err) {
         console.error('Erro ao consultar CEP:', err);
@@ -109,19 +121,23 @@ export default function HeroSearch() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (tipoPet && tipoPet !== 'Todos') {
-      params.append('tipoPet', tipoPet);
+    const mapElement = document.getElementById('mapa-vets');
+    if (mapElement) {
+      mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      const params = new URLSearchParams();
+      if (tipoPet && tipoPet !== 'Todos') {
+        params.append('tipoPet', tipoPet);
+      }
+      if (especialidade && especialidade !== 'Todas') {
+        params.append('especialidade', especialidade);
+      }
+      if (localizacao.trim()) {
+        const cleanLoc = localizacao.split('(')[0].split(',')[0].trim();
+        params.append('cidade', cleanLoc);
+      }
+      router.push(`/buscar?${params.toString()}`);
     }
-    if (especialidade && especialidade !== 'Todas') {
-      params.append('especialidade', especialidade);
-    }
-    if (localizacao.trim()) {
-      // Extrair nome da cidade se tiver parênteses ou vírgula
-      const cleanLoc = localizacao.split('(')[0].split(',')[0].trim();
-      params.append('cidade', cleanLoc);
-    }
-    router.push(`/buscar?${params.toString()}`);
   };
 
   return (

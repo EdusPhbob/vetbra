@@ -95,15 +95,15 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Header />
 
-      {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white pt-10 pb-16 border-b border-slate-200">
+      {/* PRIMEIRA TELA COMPLETA (ABOVE THE FOLD: HERO + BUSCA + CARDS DE ESTATÍSTICAS) */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white pt-8 pb-12 border-b border-slate-200 min-h-[calc(100vh-6rem)] flex flex-col justify-between">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center max-w-4xl mx-auto space-y-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full space-y-6">
+          <div className="text-center max-w-4xl mx-auto space-y-3">
             
             {/* BOTÃO DE CADASTRO DO VETERINÁRIO/CLÍNICA NO TOPO */}
-            <div className="flex justify-center pb-2">
+            <div className="flex justify-center pb-1">
               <Link
                 href="/cadastro"
                 className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300/80 font-bold text-xs sm:text-sm shadow-xs transition-all hover:scale-105"
@@ -113,11 +113,11 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
               Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
+            <p className="text-sm sm:text-lg text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
               A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
             </p>
 
@@ -125,104 +125,103 @@ export default async function HomePage() {
             <HeroSearch />
 
           </div>
+
+          {/* STATS STRIP COMPLETO NA PRIMEIRA TELA (CARDS DE METRICAS) */}
+          <div className="pt-4 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              
+              {/* Card 1: Vets Cadastrados */}
+              <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-slate-200 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                    <Stethoscope className="w-4 h-4" />
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Ativos hoje
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
+                    +3.500
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                    Veterinários Cadastrados
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: CRMV Auditado */}
+              <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-slate-200 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                    CFMV / Siscad
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-[#147A44] tracking-tight">
+                    100%
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                    CRMV Auditado no CFMV
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Pets Atendidos */}
+              <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-slate-200 shadow-xs hover:shadow-md hover:border-blue-300 transition-all group flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                    Em todo o Brasil
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                    +120 mil
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                    Pets Atendidos
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Avaliação */}
+              <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-slate-200 shadow-xs hover:shadow-md hover:border-amber-300 transition-all group flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
+                    5 Estrelas
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
+                    4.9 <span className="text-amber-400 text-xl">★</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                    Avaliação dos Tutores
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </section>
 
-      {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E RAIO EM KM (DIRETO ABAIXO DA BUSCA) */}
+      {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E DESLOCAMENTO SUAVE */}
       <VetMapExplorer vets={todosVets} />
 
-      {/* STATS STRIP (CLEAN & DINÂMICO ESTILO APPLE) */}
-      <section className="bg-slate-50/70 border-b border-slate-200/80 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card 1: Vets Cadastrados */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
-                  <Stethoscope className="w-5 h-5" />
-                </div>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/60">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Ativos hoje
-                </span>
-              </div>
-              <div>
-                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
-                  +3.500
-                </div>
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                  Veterinários Cadastrados
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: CRMV Auditado */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-                  CFMV / Siscad
-                </span>
-              </div>
-              <div>
-                <div className="text-3xl sm:text-4xl font-black text-[#147A44] tracking-tight">
-                  100%
-                </div>
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                  CRMV Auditado no CFMV
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Pets Atendidos */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all group flex flex-col justify-between space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                  <Users className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
-                  Em todo o Brasil
-                </span>
-              </div>
-              <div>
-                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                  +120 mil
-                </div>
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                  Pets Atendidos
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Avaliação */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-300 transition-all group flex flex-col justify-between space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
-                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
-                  5 Estrelas
-                </span>
-              </div>
-              <div>
-                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
-                  4.9 <span className="text-amber-400 text-2xl">★</span>
-                </div>
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                  Avaliação dos Tutores
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
       {/* ESPECIALIDADES GRID */}
-      <section className="py-20 bg-slate-50 border-b border-slate-200">
+      <section className="py-16 bg-slate-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
             <div>
