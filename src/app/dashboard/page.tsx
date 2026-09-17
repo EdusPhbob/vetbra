@@ -35,7 +35,9 @@ import {
   Upload,
   Search,
   ListFilter,
-  ArrowRight
+  ArrowRight,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { formatCrmv } from '@/lib/crmv';
 import { parseUserAgent, formatOrigem } from '@/lib/deviceDetector';
@@ -117,6 +119,21 @@ export default function DashboardPage() {
   const [ticketSuccessMsg, setTicketSuccessMsg] = useState<string | null>(null);
   const [ticketErrorMsg, setTicketErrorMsg] = useState<string | null>(null);
 
+  // Avaliações de Tutores & Resposta Oficial do Veterinário (1020 caracteres)
+  const [avaliacoes, setAvaliacoes] = useState<any[]>([]);
+  const [modalRespostaAvaliacao, setModalRespostaAvaliacao] = useState<{
+    id: string;
+    nomeTutor: string;
+    nota: number;
+    comentario: string;
+    dataAtendimento?: string;
+    respostaAtual?: string;
+  } | null>(null);
+  const [textoRespostaVet, setTextoRespostaVet] = useState('');
+  const [salvandoRespostaVet, setSalvandoRespostaVet] = useState(false);
+  const [erroRespostaVet, setErroRespostaVet] = useState<string | null>(null);
+  const [sucessoRespostaVet, setSucessoRespostaVet] = useState<string | null>(null);
+
   // Edição de Perfil com Bloqueio Anti-Fraude
   const [editForm, setEditForm] = useState({
     nomeSocialOuClinica: '',
@@ -129,8 +146,10 @@ export default function DashboardPage() {
     raioAtendimentoKm: 15,
     atende24h: false,
     atendeDomiciliar: true,
-    fotoPerfilUrl: ''
+    fotoPerfilUrl: '',
+    bannerUrl: ''
   });
+  const [uploadingBannerFoto, setUploadingBannerFoto] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editSuccessMsg, setEditSuccessMsg] = useState<string | null>(null);
   const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
@@ -160,6 +179,7 @@ export default function DashboardPage() {
         setVet(data);
         setProcedimentos(data.procedimentos || []);
         setArtigos(data.artigos || []);
+        setAvaliacoes(data.avaliacoes || []);
         setEditForm({
           nomeSocialOuClinica: data.nomeSocialOuClinica || '',
           bio: data.bio || '',
@@ -171,7 +191,8 @@ export default function DashboardPage() {
           raioAtendimentoKm: data.raioAtendimentoKm || 15,
           atende24h: !!data.atende24h,
           atendeDomiciliar: !!data.atendeDomiciliar,
-          fotoPerfilUrl: data.fotoPerfilUrl || ''
+          fotoPerfilUrl: data.fotoPerfilUrl || '',
+          bannerUrl: data.bannerUrl || ''
         });
       }
     } catch (err) {
@@ -622,6 +643,129 @@ export default function DashboardPage() {
       setEditErrorMsg('Erro de conexão no upload da foto.');
     } finally {
       setUploadingPerfilFoto(false);
+    }
+  };
+
+  // Upload da Foto de Capa (Banner do Topo do Perfil)
+  const handleBannerFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setEditErrorMsg('Formato inválido. Selecione uma imagem (JPG, PNG ou WebP).');
+      return;
+    }
+
+    setUploadingBannerFoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'banners');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setEditForm(prev => ({ ...prev, bannerUrl: data.url }));
+      } else {
+        setEditErrorMsg(data.error || 'Erro ao enviar foto de capa.');
+      }
+    } catch (err) {
+      console.error(err);
+      setEditErrorMsg('Erro de conexão no upload da capa.');
+    } finally {
+      setUploadingBannerFoto(false);
+    }
+  };
+
+  // Avaliações de Tutores & Respostas Oficiais (Até 1020 caracteres)
+  const handleAbrirModalResposta = (av: any) => {
+    setModalRespostaAvaliacao({
+      id: av.id,
+      nomeTutor: av.nomeTutor,
+      nota: av.nota,
+      comentario: av.comentario,
+      dataAtendimento: av.dataAtendimento,
+      respostaAtual: av.respostaVet || ''
+    });
+    setTextoRespostaVet(av.respostaVet || '');
+    setErroRespostaVet(null);
+    setSucessoRespostaVet(null);
+  };
+
+  const handleSalvarRespostaVet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalRespostaAvaliacao) return;
+    if (!textoRespostaVet.trim()) {
+      setErroRespostaVet('Digite o comentário de resposta.');
+      return;
+    }
+    if (textoRespostaVet.length > 1020) {
+      setErroRespostaVet(`O comentário não pode exceder 1020 caracteres (atual: ${textoRespostaVet.length}).`);
+      return;
+    }
+
+    setSalvandoRespostaVet(true);
+    setErroRespostaVet(null);
+    setSucessoRespostaVet(null);
+
+    try {
+      const res = await fetch('/api/dashboard/avaliacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avaliacaoId: modalRespostaAvaliacao.id,
+          respostaVet: textoRespostaVet.trim(),
+          vetId: vet?.id
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSucessoRespostaVet('Resposta publicada com sucesso!');
+        setAvaliacoes(prev => prev.map(av => 
+          av.id === modalRespostaAvaliacao.id 
+            ? { ...av, respostaVet: data.avaliacao.respostaVet, respostaVetEm: data.avaliacao.respostaVetEm } 
+            : av
+        ));
+        setTimeout(() => {
+          setModalRespostaAvaliacao(null);
+          setTextoRespostaVet('');
+          setSucessoRespostaVet(null);
+        }, 1200);
+      } else {
+        setErroRespostaVet(data.error || 'Erro ao salvar resposta.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErroRespostaVet('Erro de conexão ao salvar.');
+    } finally {
+      setSalvandoRespostaVet(false);
+    }
+  };
+
+  const handleRemoverRespostaVet = async (avaliacaoId: string) => {
+    if (!confirm('Deseja realmente remover sua resposta a esta avaliação?')) return;
+    try {
+      const res = await fetch(`/api/dashboard/avaliacoes?id=${avaliacaoId}&vetId=${vet?.id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAvaliacoes(prev => prev.map(av => 
+          av.id === avaliacaoId 
+            ? { ...av, respostaVet: null, respostaVetEm: null } 
+            : av
+        ));
+      } else {
+        alert(data.error || 'Erro ao remover resposta.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao remover.');
     }
   };
 
@@ -1187,6 +1331,88 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* AVALIAÇÕES DE TUTORES */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500" /> Avaliações dos Tutores
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Leia os comentários dos tutores e responda oficialmente com até 1020 caracteres. Sua resposta aparece no seu perfil público.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl self-start shrink-0">
+              {avaliacoes.length} avaliação(ões)
+            </span>
+          </div>
+
+          {avaliacoes.length === 0 ? (
+            <div className="text-center py-8 text-slate-400 space-y-1">
+              <Star className="w-8 h-8 mx-auto text-slate-300" />
+              <p className="text-sm font-semibold">Nenhuma avaliação recebida ainda.</p>
+              <p className="text-xs">As avaliações dos tutores aparecerão aqui quando forem publicadas.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {avaliacoes.map((av: any) => (
+                <div key={av.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{av.nomeTutor || 'Tutor Anônimo'}</span>
+                        <span className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} className={`w-3.5 h-3.5 ${i < av.nota ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} />
+                          ))}
+                        </span>
+                        <span className="text-xs font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-200">{av.nota}/5</span>
+                      </div>
+                      {av.dataAtendimento && (
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          Atendimento: {new Date(av.dataAtendimento).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-600 leading-relaxed">{av.comentario}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirModalResposta(av)}
+                        className="px-3 py-1.5 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        {av.respostaVet ? 'Editar Resposta' : 'Responder'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {av.respostaVet && (
+                    <div className="pl-4 border-l-2 border-emerald-400 bg-emerald-50/60 rounded-r-xl p-3 space-y-1">
+                      <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <ShieldCheck className="w-3 h-3" /> Resposta Oficial do Veterinário
+                        {av.respostaVetEm && (
+                          <span className="font-normal text-emerald-600 normal-case tracking-normal ml-1">
+                            · {new Date(av.respostaVetEm).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-700 leading-relaxed">{av.respostaVet}</p>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverRespostaVet(av.id)}
+                        className="text-[10px] text-rose-500 hover:text-rose-700 font-semibold mt-1 cursor-pointer"
+                      >
+                        Remover resposta
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* BLOG DO VETERINÁRIO */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1582,6 +1808,49 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <span className="text-[10px] text-slate-400 block">JPG, PNG ou WebP (Máx. 10MB)</span>
+                </div>
+              </div>
+
+              {/* FOTO DE CAPA (BANNER DO TOPO DO PERFIL) */}
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="w-16 h-10 rounded-lg overflow-hidden bg-slate-200 border border-slate-300 flex-shrink-0">
+                  {editForm.bannerUrl ? (
+                    <img src={editForm.bannerUrl} alt="Capa" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-white flex items-center justify-center">
+                      <ImageIcon className="w-4 h-4 text-slate-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Foto de Capa (Topo do Perfil)</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="upload-banner-modal"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
+                      onChange={handleBannerFotoUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="upload-banner-modal"
+                      className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-xs font-bold text-slate-700 hover:text-emerald-700 cursor-pointer shadow-2xs flex items-center gap-1.5 transition-colors"
+                    >
+                      {uploadingBannerFoto ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <Upload className="w-3.5 h-3.5" />}
+                      {uploadingBannerFoto ? 'Enviando...' : (editForm.bannerUrl ? 'Alterar Capa' : 'Enviar Capa')}
+                    </label>
+                    {editForm.bannerUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, bannerUrl: '' })}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 text-xs font-semibold cursor-pointer"
+                        title="Remover foto de capa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block">Fundo do topo do perfil. JPG, PNG ou WebP (Máx. 10MB)</span>
                 </div>
               </div>
 
@@ -2306,6 +2575,94 @@ export default function DashboardPage() {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE RESPOSTA A AVALIAÇÃO */}
+      {modalRespostaAvaliacao && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg space-y-5 p-6 sm:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-[#147A44]" /> Responder Avaliação
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Responda oficialmente ao comentário de <strong>{modalRespostaAvaliacao.nomeTutor || 'tutor anônimo'}</strong>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setModalRespostaAvaliacao(null); setTextoRespostaVet(''); setErroRespostaVet(null); setSucessoRespostaVet(null); }}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Avaliação original */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className={`w-3.5 h-3.5 ${i < modalRespostaAvaliacao.nota ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} />
+                  ))}
+                </span>
+                <span className="text-xs font-bold text-slate-700">{modalRespostaAvaliacao.nota}/5</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed italic">"{modalRespostaAvaliacao.comentario}"</p>
+            </div>
+
+            {/* Feedback */}
+            {erroRespostaVet && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {erroRespostaVet}
+              </div>
+            )}
+            {sucessoRespostaVet && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" /> {sucessoRespostaVet}
+              </div>
+            )}
+
+            <form onSubmit={handleSalvarRespostaVet} className="space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Sua Resposta Oficial</label>
+                  <span className={`text-[10px] font-bold ${textoRespostaVet.length > 1020 ? 'text-rose-600' : 'text-slate-400'}`}>
+                    {textoRespostaVet.length}/1020
+                  </span>
+                </div>
+                <textarea
+                  value={textoRespostaVet}
+                  onChange={(e) => setTextoRespostaVet(e.target.value)}
+                  rows={5}
+                  maxLength={1020}
+                  placeholder="Escreva sua resposta ao tutor. Seja profissional e gentil..."
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal focus:outline-hidden focus:border-emerald-500 resize-none leading-relaxed"
+                />
+                <p className="text-[10px] text-slate-400">Sua resposta ficará visível publicamente no seu perfil, abaixo do comentário do tutor.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setModalRespostaAvaliacao(null); setTextoRespostaVet(''); setErroRespostaVet(null); setSucessoRespostaVet(null); }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoRespostaVet || textoRespostaVet.length > 1020}
+                  className="px-5 py-2 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white text-xs font-bold flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  {salvandoRespostaVet ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {salvandoRespostaVet ? 'Salvando...' : 'Publicar Resposta'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

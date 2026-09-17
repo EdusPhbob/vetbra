@@ -522,6 +522,8 @@ model Avaliacao {
   dataAtendimento DateTime?       // Data informada do atendimento
   horaAtendimento String?         // Horário informado do atendimento (ex: "14:30")
   status          AvaliacaoStatus @default(PENDENTE_MODERACAO)
+  respostaVet     String?         @db.Text // Resposta/comentário do veterinário (até 1020 caracteres)
+  respostaVetEm   DateTime?
   ip              String?
   createdAt       DateTime        @default(now())
 

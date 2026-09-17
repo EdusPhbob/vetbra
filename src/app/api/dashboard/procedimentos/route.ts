@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (typeof preco === 'number') {
       parsedPreco = preco;
     } else if (typeof preco === 'string') {
-      // Tratar formatos brasileiros: "150,00", "R$ 150,00", "1.200,50" ou "150.00"
+      // Tratar formatos: "150", "150,00", "150.00", "R$ 150,00", "1.200,50"
       let clean = preco.replace(/[R$\s]/gi, '').trim();
       if (clean.includes(',') && clean.includes('.')) {
         clean = clean.replace(/\./g, '').replace(',', '.');
@@ -45,16 +45,28 @@ export async function POST(request: Request) {
     }
 
     if (isNaN(parsedPreco) || parsedPreco < 0) {
-      return NextResponse.json({ error: 'Valor inválido. Por favor, digite um número válido (ex: 150,00).' }, { status: 400 });
+      return NextResponse.json({ error: 'Valor inválido. Por favor, digite um número válido (ex: 150,00 ou 150).' }, { status: 400 });
     }
+
+    // Normaliza categoria para o enum do banco: CONSULTA, VACINACAO, CIRURGIA, EXAME, EMERGENCIA, ESTETICA, INTERNACAO
+    const categoriaLimpa = String(categoria || 'CONSULTA')
+      .trim()
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const categoriasValidas = ['CONSULTA', 'VACINACAO', 'CIRURGIA', 'EXAME', 'EMERGENCIA', 'ESTETICA', 'INTERNACAO'];
+    const categoriaFinal = (categoriasValidas.includes(categoriaLimpa)
+      ? categoriaLimpa
+      : 'CONSULTA') as any;
 
     const novo = await prisma.procedimento.create({
       data: {
         veterinarioId,
         nome: String(nome).trim(),
-        categoria: categoria || 'Consulta',
+        categoria: categoriaFinal,
         preco: parsedPreco,
-        tempoMedioMinutos: tempoMedioMinutos ? parseInt(tempoMedioMinutos) : 30,
+        tempoMedioMinutos: tempoMedioMinutos ? parseInt(String(tempoMedioMinutos)) : 30,
         descricao: descricao ? String(descricao).trim() : null
       }
     });

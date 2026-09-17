@@ -14,7 +14,8 @@ import {
   Calendar,
   Share2,
   AlertCircle,
-  Stethoscope
+  Stethoscope,
+  MessageSquare
 } from 'lucide-react';
 import { formatCrmv, checkCrmvValidity } from '@/lib/crmv';
 import WhatsAppContactButton from '@/components/WhatsAppContactButton';
@@ -155,9 +156,19 @@ export default async function VetProfilePage({ params }: Props) {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
         
-        {/* BANNER / TOPO DO PERFIL */}
+        {/* BANNER / TOPO DO PERFIL (Branco limpo ou foto de capa personalizada) */}
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="h-32 sm:h-44 bg-gradient-to-r from-emerald-800 via-[#147A44] to-[#1B85B8] relative" />
+          <div className="h-36 sm:h-56 bg-white border-b border-slate-100 relative overflow-hidden">
+            {vet.bannerUrl ? (
+              <img
+                src={vet.bannerUrl}
+                alt={`Capa do perfil de ${vet.nomeSocialOuClinica || vet.nomeCompleto}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-white relative" />
+            )}
+          </div>
 
           <div className="px-6 sm:px-10 pb-8 relative">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 -mt-16 sm:-mt-20">
@@ -362,6 +373,26 @@ export default async function VetProfilePage({ params }: Props) {
                       <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-line">
                         {av.comentario}
                       </p>
+
+                      {/* Resposta Oficial do Veterinário (Até 1020 caracteres) */}
+                      {av.respostaVet && (
+                        <div className="mt-3 p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900">
+                            <span className="flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Resposta do Veterinário ({vet.nomeSocialOuClinica || `Dr(a). ${vet.nomeCompleto}`})</span>
+                            </span>
+                            {av.respostaVetEm && (
+                              <span className="text-[10px] font-normal text-emerald-700/80">
+                                {new Date(av.respostaVetEm).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-line pl-5">
+                            {av.respostaVet}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -14,6 +14,7 @@ export async function GET(request: Request) {
       especialidades: { include: { especialidade: true } },
       procedimentos: true,
       artigos: true,
+      avaliacoes: { orderBy: { createdAt: 'desc' as const } },
       documentosCrmv: { orderBy: { enviadoEm: 'desc' as const } },
       cliquesWhatsapp: { take: 10, orderBy: { createdAt: 'desc' as const } },
       assinaturas: {
