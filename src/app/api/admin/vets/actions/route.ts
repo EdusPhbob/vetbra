@@ -13,8 +13,43 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { veterinarioId, acao, motivo } = body;
 
-    if (!veterinarioId || !acao) {
-      return NextResponse.json({ error: 'veterinarioId e acao são obrigatórios.' }, { status: 400 });
+    if (!acao) {
+      return NextResponse.json({ error: 'acao é obrigatória.' }, { status: 400 });
+    }
+
+    if (acao === 'ALTERAR_METODO_FATURA') {
+      const { faturaId, novoMetodo } = body;
+      const adminResponsavel = session.login || session.nome || session.email || 'admin';
+
+      if (!faturaId || !novoMetodo || !['PIX', 'BOLETO', 'CARTAO_CREDITO'].includes(novoMetodo)) {
+        return NextResponse.json({ error: 'Parâmetros inválidos. Escolha PIX, BOLETO ou CARTAO_CREDITO.' }, { status: 400 });
+      }
+
+      const fatura = await prisma.faturaCobranca.update({
+        where: { id: faturaId },
+        data: { metodoPreferencial: novoMetodo }
+      });
+
+      await registrarAuditoria({
+        entidade: 'FATURA',
+        registroId: faturaId,
+        acao: 'EDICAO',
+        autorId: session.userId,
+        autorEmail: adminResponsavel,
+        autorRole: 'ADMIN',
+        dadosNovos: { metodoPreferencial: novoMetodo },
+        justificativa: motivo || `Forma de pagamento da fatura ${fatura.numeroFatura} alterada para ${novoMetodo} por ${adminResponsavel}`
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Forma de pagamento da fatura alterada para ${novoMetodo} com sucesso!`,
+        fatura
+      });
+    }
+
+    if (!veterinarioId) {
+      return NextResponse.json({ error: 'veterinarioId é obrigatório.' }, { status: 400 });
     }
 
     const vet = await prisma.veterinario.findUnique({
@@ -379,6 +414,58 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           message: 'Comprovante Pix anexado com sucesso!'
+        });
+      }
+
+      case 'ALTERAR_FORMA_PAGAMENTO': {
+        const { novoMetodo, faturaId } = body;
+        const adminResponsavel = session.login || session.nome || session.email || 'admin';
+
+        if (!novoMetodo || !['PIX', 'BOLETO', 'CARTAO_CREDITO'].includes(novoMetodo)) {
+          return NextResponse.json({ error: 'Método de pagamento inválido. Escolha PIX, BOLETO ou CARTAO_CREDITO.' }, { status: 400 });
+        }
+
+        const assinatura = await prisma.assinatura.findFirst({
+          where: { veterinarioId },
+          include: { faturas: { orderBy: { createdAt: 'desc' } } },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (!assinatura) {
+          return NextResponse.json({ error: 'Nenhuma assinatura encontrada para este veterinário.' }, { status: 404 });
+        }
+
+        let faturaAlvo = null;
+        if (faturaId) {
+          faturaAlvo = await prisma.faturaCobranca.findUnique({ where: { id: faturaId } });
+        } else if (assinatura.faturas.length > 0) {
+          faturaAlvo = assinatura.faturas.find(f => f.status === 'PENDENTE') || assinatura.faturas[0];
+        }
+
+        if (faturaAlvo) {
+          await prisma.faturaCobranca.update({
+            where: { id: faturaAlvo.id },
+            data: {
+              metodoPreferencial: novoMetodo
+            }
+          });
+        }
+
+        await registrarAuditoria({
+          entidade: 'ASSINATURA',
+          registroId: assinatura.id,
+          acao: 'EDICAO',
+          autorId: session.userId,
+          autorEmail: adminResponsavel,
+          autorRole: 'ADMIN',
+          dadosNovos: { metodoPreferencial: novoMetodo, faturaId: faturaAlvo?.id },
+          justificativa: motivo || `Forma de pagamento da assinatura alterada para ${novoMetodo} por ${adminResponsavel}`
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Forma de pagamento alterada com sucesso para ${novoMetodo}!`,
+          novoMetodo
         });
       }
 

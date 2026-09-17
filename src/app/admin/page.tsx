@@ -39,16 +39,52 @@ import {
   Gift,
   Sparkles,
   Upload,
-  FileCheck
+  FileCheck,
+  CreditCard,
+  Sliders,
+  QrCode,
+  Save
 } from 'lucide-react';
 import { formatCrmv, getCfmvConsultaUrl } from '@/lib/crmv';
 
 export default function AdminCrmvModerationPage() {
-  const [activeTab, setActiveTab] = useState<'CRMV' | 'AVALIACOES' | 'TICKETS' | 'FINANCEIRO'>('CRMV');
+  const [activeTab, setActiveTab] = useState<'CRMV' | 'AVALIACOES' | 'TICKETS' | 'FINANCEIRO' | 'PAGAMENTOS'>('CRMV');
   const [vets, setVets] = useState<any[]>([]);
   const [avaliacoesData, setAvaliacoesData] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
   const [financeiroData, setFinanceiroData] = useState<any>(null);
+
+  // Configurações de Pagamento e Meios de Cobrança
+  const [pagamentosConfig, setPagamentosConfig] = useState<any>({
+    gatewayPadrao: 'ASAAS',
+    ambienteGateway: 'PRODUCAO',
+    pixAtivo: true,
+    boletoAtivo: true,
+    cartaoAtivo: true,
+    pixChave: '',
+    pixTipoChave: 'CNPJ',
+    pixBeneficiario: '',
+    pixCidade: '',
+    pixInstrucoes: '',
+    descontoPixPercentual: 0,
+    diasVencimentoBoleto: 3,
+    diasTrialPadrao: 7
+  });
+  const [loadingPagamentosConfig, setLoadingPagamentosConfig] = useState(false);
+  const [savingPagamentosConfig, setSavingPagamentosConfig] = useState(false);
+  const [configSuccessMsg, setConfigSuccessMsg] = useState<string | null>(null);
+  const [configErrorMsg, setConfigErrorMsg] = useState<string | null>(null);
+
+  // Modal para alterar forma de pagamento de um veterinário
+  const [modalMudarPagamento, setModalMudarPagamento] = useState<{
+    vetId: string;
+    vetNome: string;
+    metodoAtual: string;
+    faturaId?: string;
+  } | null>(null);
+  const [novoMetodoSelecionado, setNovoMetodoSelecionado] = useState<string>('PIX');
+  const [motivoMudarMetodo, setMotivoMudarMetodo] = useState<string>('');
+  const [salvandoNovoMetodo, setSalvandoNovoMetodo] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
@@ -147,11 +183,115 @@ export default function AdminCrmvModerationPage() {
     }
   };
 
+  const loadPagamentosConfig = async () => {
+    setLoadingPagamentosConfig(true);
+    try {
+      const res = await fetch('/api/admin/configuracoes/pagamentos');
+      const data = await res.json();
+      if (res.ok && data) {
+        setPagamentosConfig(data);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar configurações de pagamento:', err);
+    } finally {
+      setLoadingPagamentosConfig(false);
+    }
+  };
+
+  const handleSavePagamentosConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPagamentosConfig(true);
+    setConfigErrorMsg(null);
+    setConfigSuccessMsg(null);
+
+    try {
+      const res = await fetch('/api/admin/configuracoes/pagamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pagamentosConfig)
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setConfigSuccessMsg('Configurações de cobrança salvas com sucesso!');
+        setPagamentosConfig(data.config);
+        setTimeout(() => setConfigSuccessMsg(null), 4000);
+      } else {
+        setConfigErrorMsg(data.error || 'Erro ao salvar configurações de pagamento.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setConfigErrorMsg('Erro de conexão ao salvar configurações.');
+    } finally {
+      setSavingPagamentosConfig(false);
+    }
+  };
+
+  const handleChangeMetodoFatura = async (faturaId: string, novoMetodo: string) => {
+    try {
+      const res = await fetch('/api/admin/vets/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acao: 'ALTERAR_METODO_FATURA',
+          faturaId,
+          novoMetodo
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await loadFinanceiro();
+        await loadVets();
+      } else {
+        alert(data.error || 'Erro ao alterar forma de pagamento.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao alterar forma de pagamento.');
+    }
+  };
+
+  const handleSalvarNovoMetodoVet = async () => {
+    if (!modalMudarPagamento) return;
+    setSalvandoNovoMetodo(true);
+
+    try {
+      const res = await fetch('/api/admin/vets/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acao: 'ALTERAR_FORMA_PAGAMENTO',
+          veterinarioId: modalMudarPagamento.vetId,
+          novoMetodo: novoMetodoSelecionado,
+          faturaId: modalMudarPagamento.faturaId,
+          motivo: motivoMudarMetodo.trim() || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await loadVets();
+        await loadFinanceiro();
+        setModalMudarPagamento(null);
+        setMotivoMudarMetodo('');
+      } else {
+        alert(data.error || 'Erro ao atualizar forma de pagamento.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao atualizar forma de pagamento.');
+    } finally {
+      setSalvandoNovoMetodo(false);
+    }
+  };
+
   useEffect(() => {
     loadVets();
     loadAvaliacoes();
     loadTickets();
     loadFinanceiro();
+    loadPagamentosConfig();
   }, []);
 
   const handleUpdateStatus = async (veterinarioId: string, novoStatus: string, motivo?: string) => {
@@ -518,6 +658,19 @@ export default function AdminCrmvModerationPage() {
           >
             <TrendingUp className="w-4 h-4" />
             <span>Financeiro & Métricas 10 Anos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('PAGAMENTOS')}
+            className={`py-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'PAGAMENTOS'
+                ? 'border-[#147A44] text-[#147A44]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>⚙️ Meios de Pagamento</span>
           </button>
         </div>
       </div>
@@ -1102,6 +1255,28 @@ export default function AdminCrmvModerationPage() {
                               Confirmar Pagamento Pix
                             </button>
                           )}
+
+                          {/* Alterar Forma de Pagamento do Veterinário */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ultFatura = vet.assinaturas?.[0]?.faturas?.[0];
+                              const metodo = ultFatura?.metodoPreferencial || 'PIX';
+                              setModalMudarPagamento({
+                                vetId: vet.id,
+                                vetNome: vet.nomeCompleto,
+                                metodoAtual: metodo,
+                                faturaId: ultFatura?.id
+                              });
+                              setNovoMetodoSelecionado(metodo);
+                              setMotivoMudarMetodo('');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                            title="Alterar método de pagamento deste veterinário (Pix, Boleto, Cartão de Crédito)"
+                          >
+                            <CreditCard className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Mudar Pagamento ({vet.assinaturas?.[0]?.faturas?.[0]?.metodoPreferencial || 'PIX'})</span>
+                          </button>
 
                           {/* Botão de Ação: Upar Comprovante caso falte */}
                           {faltaComprovante && (
@@ -1807,14 +1982,25 @@ export default function AdminCrmvModerationPage() {
 
             {/* TABELA DE FATURAS RECENTES */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-600" />
                   Histórico de Cobranças & Faturas Emitidas
                 </h3>
-                <span className="text-xs text-slate-400 font-medium">
-                  {financeiroData?.faturasRecentes?.length || 0} faturas listadas
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('PAGAMENTOS')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Configurar gateways e dados da Chave Pix"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Configurar Formas & Chave Pix</span>
+                  </button>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {financeiroData?.faturasRecentes?.length || 0} faturas listadas
+                  </span>
+                </div>
               </div>
 
               {!financeiroData?.faturasRecentes?.length ? (
@@ -1854,8 +2040,17 @@ export default function AdminCrmvModerationPage() {
                             <td className="py-3 px-2 font-black text-slate-900">
                               R$ {fat.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="py-3 px-2 text-slate-600 font-bold">
-                              {fat.metodo}
+                            <td className="py-3 px-2">
+                              <select
+                                value={fat.metodo}
+                                onChange={(e) => handleChangeMetodoFatura(fat.id, e.target.value)}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold bg-white border border-slate-200 text-slate-700 hover:border-emerald-500 cursor-pointer focus:outline-hidden"
+                                title="Clique para alterar a forma de pagamento desta fatura"
+                              >
+                                <option value="PIX">⚡ PIX</option>
+                                <option value="BOLETO">📄 Boleto</option>
+                                <option value="CARTAO_CREDITO">💳 Cartão</option>
+                              </select>
                             </td>
                             <td className="py-3 px-2 text-slate-500">
                               {fat.vencimento ? new Date(fat.vencimento).toLocaleDateString('pt-BR') : '—'}
@@ -1881,6 +2076,292 @@ export default function AdminCrmvModerationPage() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* ABA 5: GESTÃO & CONFIGURAÇÃO DOS MEIOS DE PAGAMENTO      */}
+        {/* ======================================================== */}
+        {activeTab === 'PAGAMENTOS' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Sliders className="w-6 h-6 text-emerald-600" /> Gestão de Meios de Pagamento & Cobrança
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Configure os gateways, a chave Pix oficial para depósitos/comprovantes e as formas de pagamento disponíveis na plataforma.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Módulo Ativo
+                  </span>
+                </div>
+              </div>
+
+              {configSuccessMsg && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {configSuccessMsg}
+                </div>
+              )}
+
+              {configErrorMsg && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  {configErrorMsg}
+                </div>
+              )}
+
+              {loadingPagamentosConfig ? (
+                <div className="py-16 text-center text-xs text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600 mb-2" />
+                  Carregando configurações de pagamento...
+                </div>
+              ) : (
+                <form onSubmit={handleSavePagamentosConfig} className="space-y-6">
+                  
+                  {/* GRID 1: MEIOS HABILITADOS */}
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      1. Formas de Pagamento Aceitas no Portal
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* PIX */}
+                      <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <QrCode className="w-4 h-4 text-emerald-600" /> Pix Instantâneo
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={pagamentosConfig.pixAtivo}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixAtivo: e.target.checked })}
+                            className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Habilita pagamentos via QR Code dinâmico do gateway ou Chave Pix direta com anexo de comprovante.
+                        </p>
+                        <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full ${pagamentosConfig.pixAtivo ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'}`}>
+                          {pagamentosConfig.pixAtivo ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+
+                      {/* BOLETO */}
+                      <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600" /> Boleto Bancário
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={pagamentosConfig.boletoAtivo}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, boletoAtivo: e.target.checked })}
+                            className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Emissão de boletos bancários com código de barras e linha digitável pelo gateway integrado.
+                        </p>
+                        <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full ${pagamentosConfig.boletoAtivo ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-200 text-slate-600'}`}>
+                          {pagamentosConfig.boletoAtivo ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+
+                      {/* CARTÃO */}
+                      <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-purple-600" /> Cartão de Crédito
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={pagamentosConfig.cartaoAtivo}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, cartaoAtivo: e.target.checked })}
+                            className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Assinatura mensal recorrente com débito direto no cartão de crédito do médico veterinário.
+                        </p>
+                        <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full ${pagamentosConfig.cartaoAtivo ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-slate-200 text-slate-600'}`}>
+                          {pagamentosConfig.cartaoAtivo ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SEÇÃO 2: CHAVE PIX OFICIAL DA PLATAFORMA */}
+                  <div className="p-5 sm:p-6 rounded-2xl bg-white border border-emerald-200/80 shadow-2xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <QrCode className="w-4 h-4 text-emerald-600" /> 2. Chave Pix Oficial da Empresa (Para recebimentos manuais)
+                      </h3>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                        Exibido aos Veterinários no Dashboard
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Tipo da Chave Pix</label>
+                        <select
+                          value={pagamentosConfig.pixTipoChave || 'CNPJ'}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixTipoChave: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                        >
+                          <option value="CNPJ">CNPJ</option>
+                          <option value="CPF">CPF</option>
+                          <option value="EMAIL">E-mail</option>
+                          <option value="TELEFONE">Telefone / Celular</option>
+                          <option value="ALEATORIA">Chave Aleatória (EVP)</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Chave Pix Oficial</label>
+                        <input
+                          type="text"
+                          value={pagamentosConfig.pixChave || ''}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixChave: e.target.value })}
+                          placeholder="Ex: 50.123.456/0001-89 ou financeiro@vetbra.com.br"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Nome do Beneficiário / Razão Social</label>
+                        <input
+                          type="text"
+                          value={pagamentosConfig.pixBeneficiario || ''}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixBeneficiario: e.target.value })}
+                          placeholder="Ex: VetBra Tecnologia Animal Ltda"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Cidade da Conta</label>
+                        <input
+                          type="text"
+                          value={pagamentosConfig.pixCidade || ''}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixCidade: e.target.value })}
+                          placeholder="Ex: São Paulo"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Instruções para o Veterinário</label>
+                      <textarea
+                        rows={2}
+                        value={pagamentosConfig.pixInstrucoes || ''}
+                        onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, pixInstrucoes: e.target.value })}
+                        placeholder="Ex: Faça o Pix para a chave acima e envie o comprovante para liberação imediata da sua conta."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal focus:outline-hidden focus:border-emerald-500 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SEÇÃO 3: GATEWAY & POLÍTICAS */}
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      3. Gateway de Pagamento & Prazos
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Gateway Principal</label>
+                        <select
+                          value={pagamentosConfig.gatewayPadrao || 'ASAAS'}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, gatewayPadrao: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                        >
+                          <option value="ASAAS">Asaas (Pix, Boleto e Cartão Integrados)</option>
+                          <option value="MERCADOPAGO">MercadoPago</option>
+                          <option value="MANUAL_PIX">Pix Manual Direto (Sem Gateway Externo)</option>
+                        </select>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Ambiente do Gateway</label>
+                        <select
+                          value={pagamentosConfig.ambienteGateway || 'PRODUCAO'}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, ambienteGateway: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                        >
+                          <option value="PRODUCAO">Produção (Cobranças Reais)</option>
+                          <option value="SANDBOX">Sandbox (Ambiente de Testes)</option>
+                        </select>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Dias de Vencimento (Boleto)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="30"
+                          value={pagamentosConfig.diasVencimentoBoleto || 3}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, diasVencimentoBoleto: parseInt(e.target.value) || 3 })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Período Padrão de Teste Grátis (Trial)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          value={pagamentosConfig.diasTrialPadrao || 7}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, diasTrialPadrao: parseInt(e.target.value) || 7 })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                        />
+                        <span className="text-xs font-bold text-slate-600 shrink-0">dias</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Desconto no Pagamento via Pix</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={pagamentosConfig.descontoPixPercentual || 0}
+                          onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, descontoPixPercentual: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                        />
+                        <span className="text-xs font-bold text-slate-600 shrink-0">% de desconto</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <button
+                      type="submit"
+                      disabled={savingPagamentosConfig}
+                      className="px-6 py-2.5 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer disabled:opacity-50 transition-all"
+                    >
+                      {savingPagamentosConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      <span>{savingPagamentosConfig ? 'Salvando Configurações...' : 'Salvar Configurações de Pagamento'}</span>
+                    </button>
+                  </div>
+
+                </form>
+              )}
+            </div>
           </div>
         )}
 
@@ -2058,6 +2539,136 @@ export default function AdminCrmvModerationPage() {
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <span>Confirmar Sem Comprovante (Ficará Pendente de Anexo)</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ALTERAR FORMA DE PAGAMENTO DO VETERINÁRIO */}
+      {modalMudarPagamento && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#147A44] flex items-center justify-center">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Alterar Forma de Pagamento</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-xs">{modalMudarPagamento.vetNome}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalMudarPagamento(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">Selecione o novo método de cobrança:</p>
+                <div className="space-y-2">
+                  <div
+                    onClick={() => setNovoMetodoSelecionado('PIX')}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      novoMetodoSelecionado === 'PIX'
+                        ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${novoMetodoSelecionado === 'PIX' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">Pix Instantâneo</div>
+                        <div className="text-[10px] text-slate-500">Chave Pix da plataforma com QR Code e baixa de comprovante</div>
+                      </div>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${novoMetodoSelecionado === 'PIX' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
+                      {novoMetodoSelecionado === 'PIX' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setNovoMetodoSelecionado('BOLETO')}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      novoMetodoSelecionado === 'BOLETO'
+                        ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${novoMetodoSelecionado === 'BOLETO' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">Boleto Bancário</div>
+                        <div className="text-[10px] text-slate-500">Código de barras e linha digitável com prazo de vencimento</div>
+                      </div>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${novoMetodoSelecionado === 'BOLETO' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
+                      {novoMetodoSelecionado === 'BOLETO' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setNovoMetodoSelecionado('CARTAO_CREDITO')}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      novoMetodoSelecionado === 'CARTAO_CREDITO'
+                        ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${novoMetodoSelecionado === 'CARTAO_CREDITO' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">Cartão de Crédito</div>
+                        <div className="text-[10px] text-slate-500">Cobrança online com renovação automática mensal ou anual</div>
+                      </div>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${novoMetodoSelecionado === 'CARTAO_CREDITO' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
+                      {novoMetodoSelecionado === 'CARTAO_CREDITO' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                <label className="text-[11px] font-bold text-slate-600 uppercase">Motivo / Justificativa (Auditoria)</label>
+                <input
+                  type="text"
+                  value={motivoMudarMetodo}
+                  onChange={(e) => setMotivoMudarMetodo(e.target.value)}
+                  placeholder="Ex: Solicitado pelo veterinário via WhatsApp"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal focus:outline-hidden focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={salvandoNovoMetodo}
+                  onClick={() => setModalMudarPagamento(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={salvandoNovoMetodo}
+                  onClick={handleSalvarNovoMetodoVet}
+                  className="px-5 py-2 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-all"
+                >
+                  {salvandoNovoMetodo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>Salvar Novo Método</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

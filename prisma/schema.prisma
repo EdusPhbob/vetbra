@@ -631,3 +631,33 @@ model TicketSuporte {
   @@index([veterinarioId])
   @@index([status])
 }
+
+// -------------------------------------------------------------
+// MÓDULO 9: CONFIGURAÇÕES GLOBAIS DE PAGAMENTOS & MEIOS DE COBRANÇA
+// -------------------------------------------------------------
+
+model ConfiguracaoPagamento {
+  id                    String    @id @default("default")
+  gatewayPadrao         String    @default("ASAAS") // ASAAS, MERCADOPAGO, MANUAL_PIX
+  ambienteGateway       String    @default("PRODUCAO") // PRODUCAO, SANDBOX
+  
+  // Métodos Habilitados
+  pixAtivo              Boolean   @default(true)
+  boletoAtivo           Boolean   @default(true)
+  cartaoAtivo           Boolean   @default(true)
+
+  // Configuração Pix Manual / Dados da Empresa
+  pixChave              String?   // ex: 55.123.456/0001-00 ou email ou telefone
+  pixTipoChave          String?   @default("CNPJ") // CNPJ, CPF, EMAIL, TELEFONE, ALEATORIA
+  pixBeneficiario       String?   // ex: VetBra Tecnologia Animal Ltda
+  pixCidade             String?   @default("São Paulo")
+  pixInstrucoes         String?   @db.Text // Orientações para o veterinário pagar e enviar comprovante
+
+  // Descontos ou Políticas
+  descontoPixPercentual Float     @default(0)
+  diasVencimentoBoleto  Int       @default(3)
+  diasTrialPadrao       Int       @default(7)
+
+  updatedAt             DateTime  @updatedAt
+  updatedBy             String?
+}
