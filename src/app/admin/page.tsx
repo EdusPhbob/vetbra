@@ -43,6 +43,7 @@ import {
   CreditCard,
   Sliders,
   QrCode,
+  Shield,
   Save
 } from 'lucide-react';
 import { formatCrmv, getCfmvConsultaUrl } from '@/lib/crmv';
@@ -128,6 +129,15 @@ export default function AdminCrmvModerationPage() {
   const [replyingTicketId, setReplyingTicketId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+
+  // Comentário & nota do admin em avaliações
+  const [commentingAvaliacaoId, setCommentingAvaliacaoId] = useState<string | null>(null);
+  const [adminCommentText, setAdminCommentText] = useState('');
+  const [adminCommentNota, setAdminCommentNota] = useState<number>(5);
+  const [savingAdminComment, setSavingAdminComment] = useState(false);
+
+  // Fechar/reabrir ticket
+  const [closingTicketId, setClosingTicketId] = useState<string | null>(null);
 
   const loadVets = async () => {
     setLoading(true);
@@ -494,6 +504,62 @@ export default function AdminCrmvModerationPage() {
       console.error('Erro ao responder chamado:', err);
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  const handleChangeTicketStatus = async (ticketId: string, novoStatus: 'FECHADO' | 'ABERTO') => {
+    setClosingTicketId(ticketId);
+    try {
+      const res = await fetch('/api/admin/tickets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId, status: novoStatus })
+      });
+      if (res.ok) await loadTickets();
+    } catch (err) {
+      console.error('Erro ao alterar status do chamado:', err);
+    } finally {
+      setClosingTicketId(null);
+    }
+  };
+
+  const handleSaveAdminComment = async (avaliacaoId: string) => {
+    if (!adminCommentText.trim()) return;
+    setSavingAdminComment(true);
+    try {
+      const res = await fetch('/api/admin/avaliacoes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avaliacaoId,
+          comentarioAdmin: adminCommentText.trim(),
+          notaAdmin: adminCommentNota
+        })
+      });
+      if (res.ok) {
+        setCommentingAvaliacaoId(null);
+        setAdminCommentText('');
+        setAdminCommentNota(5);
+        await loadAvaliacoes();
+      }
+    } catch (err) {
+      console.error('Erro ao salvar comentário admin:', err);
+    } finally {
+      setSavingAdminComment(false);
+    }
+  };
+
+  const handleRemoveAdminComment = async (avaliacaoId: string) => {
+    if (!confirm('Remover o comentário oficial da plataforma desta avaliação?')) return;
+    try {
+      const res = await fetch('/api/admin/avaliacoes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avaliacaoId, removerComentarioAdmin: true })
+      });
+      if (res.ok) await loadAvaliacoes();
+    } catch (err) {
+      console.error('Erro ao remover comentário admin:', err);
     }
   };
 
@@ -1636,6 +1702,106 @@ export default function AdminCrmvModerationPage() {
                         <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-line">
                           {av.comentario}
                         </div>
+
+                        {/* Comentário e nota do admin (elogio ou crítica oficial) */}
+                        {av.comentarioAdmin && commentingAvaliacaoId !== av.id && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1.5">
+                                <Shield className="w-3.5 h-3.5" /> Comentário Oficial VetBra
+                                {av.notaAdmin && (
+                                  <span className="ml-2 flex items-center gap-0.5 text-amber-600">
+                                    {Array.from({ length: 5 }, (_, i) => (
+                                      <Star key={i} className={`w-3 h-3 ${i < av.notaAdmin ? 'fill-amber-400' : 'text-slate-300'}`} />
+                                    ))}
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setCommentingAvaliacaoId(av.id); setAdminCommentText(av.comentarioAdmin || ''); setAdminCommentNota(av.notaAdmin || 5); }}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer underline"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAdminComment(av.id)}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer underline"
+                                >
+                                  Remover
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-emerald-900 leading-relaxed whitespace-pre-line">{av.comentarioAdmin}</p>
+                            {av.comentarioAdminPor && (
+                              <p className="text-[10px] text-emerald-600">{av.comentarioAdminPor} · {av.comentarioAdminEm ? new Date(av.comentarioAdminEm).toLocaleDateString('pt-BR') : ''}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Formulário de comentário admin */}
+                        {commentingAvaliacaoId === av.id ? (
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                            <p className="text-[10px] font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                              <Shield className="w-3.5 h-3.5 text-emerald-600" /> Comentário Oficial da Plataforma (elogio ou crítica)
+                            </p>
+                            {/* Seleção de nota */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-slate-500">Nota do admin:</span>
+                              {[1,2,3,4,5].map(n => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setAdminCommentNota(n)}
+                                  className="cursor-pointer focus:outline-none"
+                                >
+                                  <Star className={`w-5 h-5 transition-colors ${n <= adminCommentNota ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                                </button>
+                              ))}
+                              <span className="text-xs font-bold text-amber-600 ml-1">{adminCommentNota}.0</span>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={adminCommentText}
+                              onChange={(e) => setAdminCommentText(e.target.value.substring(0, 1020))}
+                              placeholder="Escreva um elogio ou crítica construtiva como comentário oficial da plataforma VetBra..."
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-normal focus:outline-hidden focus:border-emerald-500 resize-none"
+                            />
+                            <p className="text-[10px] text-slate-400 text-right">{adminCommentText.length}/1020</p>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setCommentingAvaliacaoId(null); setAdminCommentText(''); }}
+                                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer hover:bg-slate-50"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAdminComment(av.id)}
+                                disabled={savingAdminComment || !adminCommentText.trim()}
+                                className="px-4 py-1.5 rounded-xl bg-[#147A44] text-white text-xs font-bold cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                              >
+                                {savingAdminComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                {savingAdminComment ? 'Salvando...' : 'Publicar Comentário'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          !av.comentarioAdmin && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => { setCommentingAvaliacaoId(av.id); setAdminCommentText(''); setAdminCommentNota(5); }}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-colors"
+                              >
+                                <Shield className="w-3.5 h-3.5" /> Comentar como VetBra
+                              </button>
+                            </div>
+                          )
+                        )}
                       </div>
                     );
                   })}
@@ -1791,18 +1957,44 @@ export default function AdminCrmvModerationPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex justify-end pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyingTicketId(ticket.id);
-                              setReplyText(ticket.respostaAdmin || '');
-                            }}
-                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            {ticket.respostaAdmin ? 'Editar Resposta' : 'Responder ao Chamado'}
-                          </button>
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          {/* Fechar / Reabrir Chamado */}
+                          {ticket.status !== 'FECHADO' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleChangeTicketStatus(ticket.id, 'FECHADO')}
+                              disabled={closingTicketId === ticket.id}
+                              className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-600 hover:text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 border border-transparent hover:border-rose-200"
+                            >
+                              {closingTicketId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                              Fechar Chamado
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleChangeTicketStatus(ticket.id, 'ABERTO')}
+                              disabled={closingTicketId === ticket.id}
+                              className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 border border-emerald-200"
+                            >
+                              {closingTicketId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              Reabrir Chamado
+                            </button>
+                          )}
+
+                          {/* Responder */}
+                          {ticket.status !== 'FECHADO' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyingTicketId(ticket.id);
+                                setReplyText(ticket.respostaAdmin || '');
+                              }}
+                              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              {ticket.respostaAdmin ? 'Editar Resposta' : 'Responder ao Chamado'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

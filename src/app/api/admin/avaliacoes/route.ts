@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { AvaliacaoStatus } from '@prisma/client';
 import { registrarAuditoria } from '@/lib/audit';
+import { getServerSession } from '@/lib/auth';
 
 export async function GET() {
   try {
-    // 1. Busca todas as avaliações com dados do profissional
     const avaliacoes = await prisma.avaliacao.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -23,7 +23,6 @@ export async function GET() {
       }
     });
 
-    // 2. Busca todos os veterinários para compilar o ranking comparativo
     const todosVets = await prisma.veterinario.findMany({
       select: {
         id: true,
@@ -35,64 +34,41 @@ export async function GET() {
         nomeSocialOuClinica: true,
         statusGeral: true,
         avaliacoes: {
-          select: {
-            id: true,
-            nota: true,
-            status: true,
-            createdAt: true
-          }
+          select: { id: true, nota: true, status: true, createdAt: true }
         }
       }
     });
 
-    // 3. Monta as métricas de reputação para cada veterinário
     const ranking = todosVets.map(v => {
       const total = v.avaliacoes.length;
       const validas = v.avaliacoes.filter(a => a.status !== AvaliacaoStatus.REJEITADA);
       const soma = validas.reduce((acc, a) => acc + a.nota, 0);
       const media = validas.length > 0 ? Number((soma / validas.length).toFixed(2)) : null;
-
       const estrelas5 = v.avaliacoes.filter(a => a.nota === 5).length;
       const estrelas4 = v.avaliacoes.filter(a => a.nota === 4).length;
       const estrelas3 = v.avaliacoes.filter(a => a.nota === 3).length;
       const estrelas2 = v.avaliacoes.filter(a => a.nota === 2).length;
       const estrelas1 = v.avaliacoes.filter(a => a.nota === 1).length;
-
       const positivas = estrelas5 + estrelas4;
       const reclamacoes = estrelas1 + estrelas2;
-
       return {
-        id: v.id,
-        nomeCompleto: v.nomeCompleto,
-        slug: v.slug,
-        crmvNumero: v.crmvNumero,
-        crmvUf: v.crmvUf,
-        fotoPerfilUrl: v.fotoPerfilUrl,
-        nomeSocialOuClinica: v.nomeSocialOuClinica,
-        statusGeral: v.statusGeral,
-        totalAvaliacoes: total,
-        mediaNota: media,
-        positivas,
-        reclamacoes,
-        estrelas5,
-        estrelas4,
-        estrelas3,
-        estrelas2,
-        estrelas1
+        id: v.id, nomeCompleto: v.nomeCompleto, slug: v.slug,
+        crmvNumero: v.crmvNumero, crmvUf: v.crmvUf,
+        fotoPerfilUrl: v.fotoPerfilUrl, nomeSocialOuClinica: v.nomeSocialOuClinica,
+        statusGeral: v.statusGeral, totalAvaliacoes: total,
+        mediaNota: media, positivas, reclamacoes,
+        estrelas5, estrelas4, estrelas3, estrelas2, estrelas1
       };
     });
 
-    // Melhores avaliados (com pelo menos 1 avaliação, ordenados por maior média e maior volume)
     const melhoresVets = [...ranking]
       .filter(r => r.totalAvaliacoes > 0)
       .sort((a, b) => (b.mediaNota || 0) - (a.mediaNota || 0) || b.totalAvaliacoes - a.totalAvaliacoes);
 
-    // Veterinários com mais reclamações (ordenados por volume de notas 1 e 2)
     const maisReclamados = [...ranking]
       .filter(r => r.reclamacoes > 0)
       .sort((a, b) => b.reclamacoes - a.reclamacoes || (a.mediaNota || 5) - (b.mediaNota || 5));
 
-    // Sem avaliações
     const semAvaliacoes = ranking.filter(r => r.totalAvaliacoes === 0);
 
     return NextResponse.json({
@@ -100,9 +76,7 @@ export async function GET() {
       ranking: {
         totalGeralAvaliacoes: avaliacoes.length,
         totalReclamacoes: ranking.reduce((acc, r) => acc + r.reclamacoes, 0),
-        melhoresVets,
-        maisReclamados,
-        semAvaliacoes
+        melhoresVets, maisReclamados, semAvaliacoes
       }
     });
   } catch (err) {
@@ -113,11 +87,12 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const session = await getServerSession();
     const body = await request.json();
-    const { avaliacaoId, novoStatus, motivo } = body;
+    const { avaliacaoId, novoStatus, motivo, comentarioAdmin, notaAdmin, removerComentarioAdmin } = body;
 
-    if (!avaliacaoId || !novoStatus) {
-      return NextResponse.json({ error: 'Informe o ID da avaliação e o novo status.' }, { status: 400 });
+    if (!avaliacaoId) {
+      return NextResponse.json({ error: 'Informe o ID da avaliação.' }, { status: 400 });
     }
 
     const avaliacaoExiste = await prisma.avaliacao.findUnique({
@@ -129,19 +104,43 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Avaliação não encontrada.' }, { status: 404 });
     }
 
+    const updateData: any = {};
+
+    if (novoStatus) {
+      updateData.status = novoStatus as AvaliacaoStatus;
+    }
+
+    if (removerComentarioAdmin) {
+      updateData.comentarioAdmin = null;
+      updateData.notaAdmin = null;
+      updateData.comentarioAdminEm = null;
+      updateData.comentarioAdminPor = null;
+    } else if (comentarioAdmin !== undefined) {
+      if (comentarioAdmin.trim()) {
+        updateData.comentarioAdmin = comentarioAdmin.trim().substring(0, 1020);
+        updateData.comentarioAdminEm = new Date();
+        updateData.comentarioAdminPor = session?.email || session?.login || 'admin@vetbra.com.br';
+      }
+      if (notaAdmin !== undefined && notaAdmin !== null && Number(notaAdmin) >= 1 && Number(notaAdmin) <= 5) {
+        updateData.notaAdmin = Number(notaAdmin);
+      }
+    }
+
     const atualizada = await prisma.avaliacao.update({
       where: { id: avaliacaoId },
-      data: { status: novoStatus as AvaliacaoStatus }
+      data: updateData
     });
 
-    await registrarAuditoria({
-      acao: novoStatus === 'PUBLICADA' ? 'APROVACAO' : 'REJEICAO',
-      entidade: 'SISTEMA',
-      registroId: avaliacaoId,
-      dadosAnteriores: { status: avaliacaoExiste.status },
-      dadosNovos: { status: novoStatus, motivo: motivo || null },
-      justificativa: `Moderação de avaliação de ${avaliacaoExiste.nomeTutor} para ${avaliacaoExiste.veterinario.nomeCompleto}: ${novoStatus}`
-    });
+    if (novoStatus) {
+      await registrarAuditoria({
+        acao: novoStatus === 'PUBLICADA' ? 'APROVACAO' : 'REJEICAO',
+        entidade: 'SISTEMA',
+        registroId: avaliacaoId,
+        dadosAnteriores: { status: avaliacaoExiste.status },
+        dadosNovos: { status: novoStatus, motivo: motivo || null },
+        justificativa: `Moderação de avaliação de ${avaliacaoExiste.nomeTutor} para ${avaliacaoExiste.veterinario.nomeCompleto}: ${novoStatus}`
+      });
+    }
 
     return NextResponse.json({ success: true, avaliacao: atualizada });
   } catch (err) {

@@ -525,6 +525,11 @@ model Avaliacao {
   status          AvaliacaoStatus @default(PENDENTE_MODERACAO)
   respostaVet     String?         @db.Text // Resposta/comentário do veterinário (até 1020 caracteres)
   respostaVetEm   DateTime?
+  // Comentário oficial do Admin (elogio ou crítica) e nota atribuída pela plataforma
+  comentarioAdmin String?         @db.Text
+  notaAdmin       Int?            // Nota de 1 a 5 dada pelo admin (independente da nota do tutor)
+  comentarioAdminEm DateTime?
+  comentarioAdminPor String?      // Email/login do admin que comentou
   ip              String?
   createdAt       DateTime        @default(now())
 
