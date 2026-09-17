@@ -40,9 +40,16 @@ export default function HeroSearch() {
     setTimeout(() => {
       const mapElement = document.getElementById('mapa-vets');
       if (mapElement) {
-        mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const headerOffset = 90;
+        const elementPosition = mapElement.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
-    }, 200);
+    }, 150);
   };
 
   // Obter localização via GPS do Navegador
@@ -123,7 +130,7 @@ export default function HeroSearch() {
     e.preventDefault();
     const mapElement = document.getElementById('mapa-vets');
     if (mapElement) {
-      mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollToMapSection();
     } else {
       const params = new URLSearchParams();
       if (tipoPet && tipoPet !== 'Todos') {
