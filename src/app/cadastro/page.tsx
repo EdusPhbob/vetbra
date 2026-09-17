@@ -4,6 +4,7 @@ import React, { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import PricingCards from '@/components/PricingCards';
 import { 
   ShieldCheck, 
   Stethoscope, 
@@ -1193,98 +1194,11 @@ function CadastroContent() {
                   </div>
 
                   {/* CARDS DE PLANOS */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    
-                    {/* PLANO BÁSICO */}
-                    <div 
-                      onClick={() => setForm(prev => ({ ...prev, plano: 'BASICO' }))}
-                      className={`p-5 rounded-3xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                        form.plano === 'BASICO' ? 'border-[#147A44] bg-emerald-50/40 shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">Básico</span>
-                        <div>
-                          <span className="text-2xl font-black text-slate-900">R$ 79,90</span>
-                          <span className="text-xs text-slate-400 font-medium">/mês</span>
-                        </div>
-                        <ul className="text-xs space-y-2 text-slate-600">
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Perfil com CRMV Auditado</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> 1 Endereço no Mapa</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Botão WhatsApp sem limites</li>
-                        </ul>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-slate-200/60">
-                        <span className={`block text-center text-xs font-bold py-2 rounded-xl ${
-                          form.plano === 'BASICO' ? 'bg-[#147A44] text-white' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {form.plano === 'BASICO' ? 'Selecionado' : 'Escolher Básico'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* PLANO PROFISSIONAL (DESTAQUE) */}
-                    <div 
-                      onClick={() => setForm(prev => ({ ...prev, plano: 'PROFISSIONAL' }))}
-                      className={`p-5 rounded-3xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                        form.plano === 'PROFISSIONAL' ? 'border-[#147A44] bg-emerald-50/50 shadow-md scale-102 ring-2 ring-emerald-400/20' : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#147A44] text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
-                        Mais Recomendado
-                      </div>
-                      <div className="space-y-3 pt-1">
-                        <span className="text-xs font-black uppercase tracking-wider text-[#147A44]">Profissional</span>
-                        <div>
-                          <span className="text-3xl font-black text-slate-900">R$ 149,90</span>
-                          <span className="text-xs text-slate-400 font-medium">/mês</span>
-                        </div>
-                        <ul className="text-xs space-y-2 text-slate-600">
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Selo Oficial Verificado CFMV</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Ícone de Veículo no Mapa</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Relatório de Cliques WhatsApp</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Até 2 Endereços (Base + Filial)</li>
-                        </ul>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-slate-200/60">
-                        <span className={`block text-center text-xs font-bold py-2 rounded-xl ${
-                          form.plano === 'PROFISSIONAL' ? 'bg-[#147A44] text-white' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {form.plano === 'PROFISSIONAL' ? 'Selecionado' : 'Escolher Profissional'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* PLANO PREMIUM */}
-                    <div 
-                      onClick={() => setForm(prev => ({ ...prev, plano: 'PREMIUM' }))}
-                      className={`p-5 rounded-3xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                        form.plano === 'PREMIUM' ? 'border-[#147A44] bg-emerald-50/40 shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        <span className="text-xs font-black uppercase tracking-wider text-amber-600">Premium Top</span>
-                        <div>
-                          <span className="text-2xl font-black text-slate-900">R$ 299,90</span>
-                          <span className="text-xs text-slate-400 font-medium">/mês</span>
-                        </div>
-                        <ul className="text-xs space-y-2 text-slate-600">
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Top 1 nas Buscas por CEP</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Destaque Dourado no Mapa</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Inteligência de Mercado Regional</li>
-                          <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Suporte Prioritário VIP</li>
-                        </ul>
-                      </div>
-                      <div className="pt-4 mt-4 border-t border-slate-200/60">
-                        <span className={`block text-center text-xs font-bold py-2 rounded-xl ${
-                          form.plano === 'PREMIUM' ? 'bg-[#147A44] text-white' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {form.plano === 'PREMIUM' ? 'Selecionado' : 'Escolher Premium'}
-                        </span>
-                      </div>
-                    </div>
-
-                  </div>
+                  <PricingCards
+                    mode="select"
+                    selectedPlan={form.plano}
+                    onSelectPlan={(p) => setForm(prev => ({ ...prev, plano: p }))}
+                  />
 
                   {/* RESUMO DE COBRANÇA PIX / BOLETO */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">

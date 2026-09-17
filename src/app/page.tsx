@@ -7,6 +7,7 @@ import VetCard from '@/components/VetCard';
 import HeroSearch from '@/components/HeroSearch';
 import VetMapExplorer from '@/components/VetMapExplorer';
 import HeroTransitionCover from '@/components/HeroTransitionCover';
+import PricingCards from '@/components/PricingCards';
 import { 
   ShieldCheck, 
   Search, 
@@ -525,6 +526,25 @@ export default async function HomePage() {
             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
           </div>
 
+        </div>
+      </section>
+
+      {/* SEÇÃO DE PLANOS TRANSPARENTES PARA VETERINÁRIOS & CLÍNICAS */}
+      <section className="bg-slate-50 py-20 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#147A44] text-xs font-bold border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5" /> Planos Transparentes Sem Fidelidade
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Destaque seu consultório ou hospital na VetBra
+            </h2>
+            <p className="text-sm text-slate-600 font-medium">
+              Aumente o fluxo de pacientes na sua região com perfil verificado pelo CRMV, presença no Google e contato direto no WhatsApp.
+            </p>
+          </div>
+
+          <PricingCards mode="link" />
         </div>
       </section>
 
