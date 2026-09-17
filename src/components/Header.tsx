@@ -40,6 +40,12 @@ export default function Header() {
           {/* Desktop Nav (Letras Brancas - Mantidas no topo e na rolagem) */}
           <nav className="hidden md:flex items-center gap-8">
             <Link 
+              href="/#como-funciona" 
+              className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
+            >
+              Como Funciona
+            </Link>
+            <Link 
               href="/buscar" 
               className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
             >
@@ -50,12 +56,6 @@ export default function Header() {
               className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
             >
               Planos para Clínicas & Vets
-            </Link>
-            <Link 
-              href="/#como-funciona" 
-              className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
-            >
-              Como Funciona
             </Link>
           </nav>
 
@@ -94,6 +94,13 @@ export default function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-white/20 space-y-3">
             <Link
+              href="/#como-funciona"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Como Funciona
+            </Link>
+            <Link
               href="/buscar"
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
@@ -106,13 +113,6 @@ export default function Header() {
               className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
             >
               Planos para Clínicas & Vets
-            </Link>
-            <Link
-              href="/#como-funciona"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
-            >
-              Como Funciona
             </Link>
             <div className="pt-2 border-t border-white/20 flex flex-col gap-2">
               <Link
