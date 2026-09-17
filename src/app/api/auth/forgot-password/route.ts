@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     // Salva novo token
     await prisma.passwordResetToken.create({
       data: {
+        userId: user.id,
         email: user.email,
         codigo,
         token,

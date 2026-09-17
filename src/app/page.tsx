@@ -30,11 +30,11 @@ export const revalidate = 60; // Regeneração ISR a cada 60s para SEO máximo
 
 export default async function HomePage() {
   // Puxa os veterinários em destaque diretamente do PostgreSQL do Coolify
-  const vetsDestaque = await prisma.veterinario.findMany({
+  const rawVetsDestaque = await prisma.veterinario.findMany({
     where: { crmvStatus: 'VERIFICADO' },
     include: {
       enderecos: true,
-      especialidades: true,
+      especialidades: { include: { especialidade: true } },
       procedimentos: { where: { ativo: true } },
       avaliacoes: true
     },
@@ -43,26 +43,35 @@ export default async function HomePage() {
   });
 
   // Todos os veterinários verificados para o mapa interativo
-  const todosVets = await prisma.veterinario.findMany({
+  const rawTodosVets = await prisma.veterinario.findMany({
     where: { crmvStatus: 'VERIFICADO' },
     include: {
       enderecos: true,
-      especialidades: true,
+      especialidades: { include: { especialidade: true } },
       procedimentos: { where: { ativo: true } },
       avaliacoes: true
     }
   });
 
   // Veterinários recém-cadastrados (Novos perfis no VetBra)
-  const novosVets = await prisma.veterinario.findMany({
+  const rawNovosVets = await prisma.veterinario.findMany({
     where: { crmvStatus: 'VERIFICADO' },
     include: {
       enderecos: true,
-      especialidades: true
+      especialidades: { include: { especialidade: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 6
   });
+
+  const formatVet = (v: any) => ({
+    ...v,
+    especialidades: v.especialidades?.map((ve: any) => ve.especialidade || ve) || []
+  });
+
+  const vetsDestaque = rawVetsDestaque.map(formatVet);
+  const todosVets = rawTodosVets.map(formatVet);
+  const novosVets = rawNovosVets.map(formatVet);
 
   // Artigos recentes do Blog publicados pelos veterinários
   const artigos = await prisma.artigo.findMany({

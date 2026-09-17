@@ -37,10 +37,10 @@ export default function VetCompareDrawer({ vets, onRemove, onClear }: VetCompare
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 overflow-x-auto">
           {vets.map((v) => {
-            const consulta = v.procedimentos?.find((p: any) => p.categoria.toLowerCase().includes('consulta'));
-            const precoConsulta = consulta ? consulta.preco : 120;
-            const vacina = v.procedimentos?.find((p: any) => p.categoria.toLowerCase().includes('vacina'));
-            const precoVacina = vacina ? vacina.preco : 90;
+            const consulta = v.procedimentos?.find((p: any) => (p.categoria?.toString() || '').toLowerCase().includes('consulta'));
+            const precoConsulta = Number(consulta?.preco ?? 120);
+            const vacina = v.procedimentos?.find((p: any) => (p.categoria?.toString() || '').toLowerCase().includes('vacina'));
+            const precoVacina = Number(vacina?.preco ?? 90);
 
             return (
               <div key={v.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200 relative text-xs flex flex-col justify-between">

@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { CrmvStatus } from '@prisma/client';
+import { CrmvStatus, VetStatusGeral, DocumentoStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { veterinarioId, novoStatus, validade, notas, adminEmail } = body;
+    const { veterinarioId, novoStatus, validade, notas, adminEmail = 'admin@vetbra.com.br' } = body;
 
     if (!veterinarioId || !novoStatus) {
       return NextResponse.json({ error: 'Parâmetros obrigatórios ausentes.' }, { status: 400 });
     }
 
     const vetAtual = await prisma.veterinario.findUnique({
-      where: { id: veterinarioId }
+      where: { id: veterinarioId },
+      include: { assinaturas: { where: { status: 'ATIVA' } } }
     });
 
     if (!vetAtual) {
@@ -20,16 +21,29 @@ export async function POST(request: Request) {
     }
 
     const statusAnterior = vetAtual.crmvStatus;
+    const isAprovado = novoStatus === CrmvStatus.VERIFICADO;
 
     // Atualiza o veterinário
     const vetAtualizado = await prisma.veterinario.update({
       where: { id: veterinarioId },
       data: {
         crmvStatus: novoStatus as CrmvStatus,
+        statusGeral: isAprovado ? VetStatusGeral.ATIVO : (novoStatus === CrmvStatus.REJEITADO ? VetStatusGeral.BLOQUEADO : vetAtual.statusGeral),
         crmvValidade: validade ? new Date(validade) : vetAtual.crmvValidade,
         crmvNotasAuditoria: notas || vetAtual.crmvNotasAuditoria,
         crmvUltimaVerificacao: new Date(),
-        destaqueBusca: novoStatus === CrmvStatus.VERIFICADO ? true : vetAtual.destaqueBusca
+        destaqueBusca: isAprovado ? true : vetAtual.destaqueBusca
+      }
+    });
+
+    // Atualiza o status dos documentos vinculados
+    await prisma.crmvDocumento.updateMany({
+      where: { veterinarioId },
+      data: {
+        status: isAprovado ? DocumentoStatus.APROVADO : (novoStatus === CrmvStatus.REJEITADO ? DocumentoStatus.REJEITADO : DocumentoStatus.EM_ANALISE),
+        analisadoPor: adminEmail,
+        analisadoEm: new Date(),
+        observacoes: notas || null
       }
     });
 
@@ -37,7 +51,7 @@ export async function POST(request: Request) {
     await prisma.crmvAuditoriaLog.create({
       data: {
         veterinarioId,
-        adminEmail: adminEmail || 'admin@vetbra.com.br',
+        adminEmail,
         statusAnterior,
         statusNovo: novoStatus as CrmvStatus,
         motivo: notas || 'Auditoria de regularidade no CFMV/CRMV'

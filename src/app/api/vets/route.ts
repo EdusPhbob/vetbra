@@ -61,7 +61,9 @@ export async function GET(request: Request) {
     if (especialidade && especialidade !== 'Todas') {
       where.especialidades = {
         some: {
-          nome: { contains: especialidade, mode: 'insensitive' }
+          especialidade: {
+            nome: { contains: especialidade, mode: 'insensitive' }
+          }
         }
       };
     }
@@ -79,7 +81,14 @@ export async function GET(request: Request) {
       where,
       include: {
         enderecos: true,
-        especialidades: true,
+        especialidades: {
+          include: { especialidade: true }
+        },
+        assinaturas: {
+          include: { plano: true },
+          where: { status: 'ATIVA' }
+        },
+        documentosCrmv: true,
         procedimentos: {
           where: { ativo: true }
         },
@@ -96,14 +105,21 @@ export async function GET(request: Request) {
     if (minPrice !== undefined || maxPrice !== undefined) {
       filtered = vets.filter(v => {
         const consulta = v.procedimentos.find(p => p.categoria.toLowerCase().includes('consulta'));
-        const price = consulta ? consulta.preco : 120;
+        const price = consulta ? Number(consulta.preco) : 120;
         if (minPrice !== undefined && price < minPrice) return false;
         if (maxPrice !== undefined && price > maxPrice) return false;
         return true;
       });
     }
 
-    return NextResponse.json(filtered);
+    // Normaliza para o formato esperado pelo frontend mantendo 100% de compatibilidade
+    const mapped = filtered.map(v => ({
+      ...v,
+      plano: v.assinaturas?.[0]?.plano?.nome?.replace('Plano ', '') || 'Profissional',
+      especialidades: v.especialidades.map(ve => ve.especialidade)
+    }));
+
+    return NextResponse.json(mapped);
   } catch (error: any) {
     console.error('Erro ao buscar veterinários:', error);
     return NextResponse.json({ error: 'Erro interno ao consultar veterinários' }, { status: 500 });

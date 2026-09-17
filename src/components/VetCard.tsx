@@ -13,8 +13,8 @@ interface VetCardProps {
 
 export default function VetCard({ vet, isCompared, onToggleCompare }: VetCardProps) {
   const enderecoPrincipal = vet.enderecos?.[0] || {};
-  const consulta = vet.procedimentos?.find((p: any) => p.categoria.toLowerCase().includes('consulta'));
-  const precoConsulta = consulta ? consulta.preco : 120;
+  const consulta = vet.procedimentos?.find((p: any) => (p.categoria?.toString() || '').toLowerCase().includes('consulta'));
+  const precoConsulta = Number(consulta?.preco ?? 120);
 
   const totalReviews = vet.avaliacoes?.length || 0;
   const mediaNota = totalReviews > 0

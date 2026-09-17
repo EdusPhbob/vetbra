@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { Role, CrmvStatus, PlanoTipo, AssinaturaStatus, FaturaStatus, MetodoPagamento } from '@prisma/client';
+import { 
+  Role, 
+  VetStatusGeral, 
+  CrmvStatus, 
+  DocumentoTipo, 
+  DocumentoStatus, 
+  AssinaturaStatus, 
+  AssinaturaCiclo, 
+  FaturaStatus, 
+  MetodoPagamento, 
+  ProcedimentoCategoria 
+} from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -83,6 +94,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `O CRMV ${crmvNumero}/${crmvUf} já está cadastrado na base de dados.` }, { status: 400 });
     }
 
+    // Localiza o plano selecionado no banco
+    const planoSlug = plano.toLowerCase().includes('premium') ? 'premium' :
+                      plano.toLowerCase().includes('basico') ? 'basico' : 'profissional';
+    
+    let planoDb = await prisma.plano.findUnique({ where: { slug: planoSlug } });
+    if (!planoDb) {
+      // Fallback
+      planoDb = await prisma.plano.findFirst() || await prisma.plano.create({
+        data: {
+          slug: 'profissional',
+          nome: 'Plano Profissional',
+          precoMensal: 149.90,
+          limiteEnderecos: 2,
+          destaqueBusca: true,
+          ativo: true
+        }
+      });
+    }
+
     // Criptografa a senha com bcrypt (Hash padrão SaaS)
     const saltRounds = 10;
     const senhaHash = await bcrypt.hash(senha, saltRounds);
@@ -113,17 +143,8 @@ export async function POST(request: Request) {
       dataValidadeCrmv = new Date(crmvValidade);
     }
 
-    // Mapeamento de planos e valores
-    const planoEnum = (plano.toUpperCase() as PlanoTipo) || PlanoTipo.PROFISSIONAL;
-    const valoresPlanos: Record<PlanoTipo, number> = {
-      [PlanoTipo.BASICO]: 79.90,
-      [PlanoTipo.PROFISSIONAL]: 149.90,
-      [PlanoTipo.PREMIUM]: 299.90
-    };
-    const valorPlano = valoresPlanos[planoEnum] || 149.90;
-
-    // Lista de endereços para criar
-    const enderecosData = [
+    // Lista de endereços
+    const enderecosData: any[] = [
       {
         tipoEndereco: 'PRINCIPAL',
         cep: cep || '01000-000',
@@ -155,7 +176,27 @@ export async function POST(request: Request) {
       });
     }
 
-    // Cria o perfil do Veterinário
+    // Lista de documentos comprobatórios
+    const documentosData: any[] = [];
+    if (crmvDocumentoUrl) {
+      documentosData.push({
+        tipo: DocumentoTipo.CARTEIRA_FRENTE,
+        arquivoUrl: crmvDocumentoUrl,
+        status: DocumentoStatus.ENVIADO
+      });
+    }
+    if (crmvSelfieUrl) {
+      documentosData.push({
+        tipo: DocumentoTipo.SELFIE_COM_DOCUMENTO,
+        arquivoUrl: crmvSelfieUrl,
+        status: DocumentoStatus.ENVIADO
+      });
+    }
+
+    const valorPlano = Number(planoDb.precoMensal);
+    const numeroFatura = `FAT-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // Cria o perfil do Veterinário + Documentos + Endereços + Assinatura + Fatura inicial
     const vet = await prisma.veterinario.create({
       data: {
         userId: user.id,
@@ -166,15 +207,14 @@ export async function POST(request: Request) {
         telefone: whatsapp.replace(/\D/g, ''),
         fotoPerfilUrl: fotoPerfilUrl || null,
         // Anti-fraude & CRMV
+        statusGeral: VetStatusGeral.AGUARDANDO_APROVACAO,
         crmvNumero: crmvNumero.trim(),
         crmvUf: crmvUf.toUpperCase(),
         crmvValidade: dataValidadeCrmv,
-        crmvDocumentoUrl: crmvDocumentoUrl || null,
-        crmvSelfieUrl: crmvSelfieUrl || null,
         crmvStatus: CrmvStatus.PENDENTE,
         // Atendimento & Mobilidade
-        tipoEstabelecimento: tipoEstabelecimento || 'Clinica',
-        meioTransporte: meiosTransporte[0] || 'Nenhum',
+        tipoEstabelecimento: tipoEstabelecimento || 'Clínica Veterinária Fixa',
+        meioTransporte: meiosTransporte[0] || 'Carro',
         meiosTransporte: meiosTransporte,
         raioAtendimentoKm: parseInt(String(raioAtendimentoKm)) || 15,
         cidadeBase: cidadeBase || cidade || 'São Paulo',
@@ -182,9 +222,10 @@ export async function POST(request: Request) {
         permiteVetMovelApp: !!permiteVetMovelApp,
         atende24h: !!atende24h,
         atendeDomiciliar: !!atendeDomiciliar,
-        // Plano & Assinatura
-        plano: planoEnum,
-        statusAssinatura: AssinaturaStatus.PENDENTE,
+        // Documentos comprobatórios
+        documentosCrmv: {
+          create: documentosData
+        },
         // Endereços vinculados
         enderecos: {
           create: enderecosData
@@ -192,28 +233,45 @@ export async function POST(request: Request) {
         // Procedimentos padrão
         procedimentos: {
           create: [
-            { nome: 'Consulta Clínica Geral', categoria: 'Consulta', preco: 160, tempoMedioMinutos: 40 },
-            { nome: 'Vacina Importada V10 / Quádrupla', categoria: 'Vacinação', preco: 98, tempoMedioMinutos: 20 },
-            { nome: 'Atendimento Domiciliar Preventivo', categoria: 'Consulta', preco: 220, tempoMedioMinutos: 60 }
+            { nome: 'Consulta Clínica Geral', categoria: ProcedimentoCategoria.CONSULTA, preco: 160, tempoMedioMinutos: 40 },
+            { nome: 'Vacina Importada V10 / Quádrupla', categoria: ProcedimentoCategoria.VACINACAO, preco: 98, tempoMedioMinutos: 20 },
+            { nome: 'Atendimento Domiciliar Preventivo', categoria: ProcedimentoCategoria.CONSULTA, preco: 220, tempoMedioMinutos: 60 }
           ]
         },
-        // Gera fatura inicial de ativação (Pix / Boleto)
-        faturas: {
+        // Assinatura e Fatura inicial Pix
+        assinaturas: {
           create: {
-            plano: planoEnum,
-            valor: valorPlano,
-            status: FaturaStatus.PENDENTE,
-            metodo: MetodoPagamento.PIX,
-            pixCopiaCola: `00020126580014BR.GOV.BCB.PIX0136vetbra-${user.id.slice(0, 8)}520400005303986540${valorPlano.toFixed(2)}5802BR5906VETBRA6009SAO PAULO62070503***6304ABCD`,
-            dataVencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 dias para pagamento
+            planoId: planoDb.id,
+            status: AssinaturaStatus.PENDENTE,
+            ciclo: AssinaturaCiclo.MENSAL,
+            valorAtual: valorPlano,
+            faturas: {
+              create: {
+                numeroFatura,
+                valor: valorPlano,
+                status: FaturaStatus.PENDENTE,
+                metodoPreferencial: MetodoPagamento.PIX,
+                pixCopiaCola: `00020126580014BR.GOV.BCB.PIX0136vetbra-${user.id.slice(0, 8)}520400005303986540${valorPlano.toFixed(2)}5802BR5906VETBRA6009SAO PAULO62070503***6304ABCD`,
+                dataVencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+              }
+            }
           }
         }
       },
       include: {
         enderecos: true,
-        faturas: true
+        documentosCrmv: true,
+        assinaturas: {
+          include: {
+            plano: true,
+            faturas: true
+          }
+        }
       }
     });
+
+    const primeiraAssinatura = vet.assinaturas[0];
+    const primeiraFatura = primeiraAssinatura?.faturas[0];
 
     return NextResponse.json({
       success: true,
@@ -230,8 +288,10 @@ export async function POST(request: Request) {
         crmvNumero: vet.crmvNumero,
         crmvUf: vet.crmvUf,
         crmvStatus: vet.crmvStatus,
-        plano: vet.plano,
-        faturaId: vet.faturas[0]?.id
+        statusGeral: vet.statusGeral,
+        plano: primeiraAssinatura?.plano?.nome || 'Profissional',
+        faturaId: primeiraFatura?.id,
+        pixCopiaCola: primeiraFatura?.pixCopiaCola
       }
     });
   } catch (error: any) {

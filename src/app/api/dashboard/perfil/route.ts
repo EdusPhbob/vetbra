@@ -8,29 +8,33 @@ export async function GET(request: Request) {
     const vetId = searchParams.get('vetId');
 
     let vet;
+    const includeConfig = {
+      user: { select: { id: true, email: true, login: true, nome: true, role: true } },
+      enderecos: true,
+      especialidades: { include: { especialidade: true } },
+      procedimentos: true,
+      artigos: true,
+      documentosCrmv: { orderBy: { enviadoEm: 'desc' as const } },
+      cliquesWhatsapp: { take: 10, orderBy: { createdAt: 'desc' as const } },
+      assinaturas: {
+        include: {
+          plano: true,
+          faturas: { orderBy: { createdAt: 'desc' as const }, take: 5 }
+        },
+        orderBy: { createdAt: 'desc' as const },
+        take: 1
+      }
+    };
+
     if (vetId) {
       vet = await prisma.veterinario.findUnique({
         where: { id: vetId },
-        include: {
-          user: { select: { id: true, email: true, login: true, nome: true, role: true } },
-          enderecos: true,
-          procedimentos: true,
-          artigos: true,
-          cliquesWhatsapp: { take: 10, orderBy: { createdAt: 'desc' } },
-          faturas: { orderBy: { createdAt: 'desc' }, take: 3 }
-        }
+        include: includeConfig
       });
     } else {
-      // Fallback para primeiro vet ativo para dev/preview
+      // Fallback para primeiro veterinário para preview de desenvolvimento
       vet = await prisma.veterinario.findFirst({
-        include: {
-          user: { select: { id: true, email: true, login: true, nome: true, role: true } },
-          enderecos: true,
-          procedimentos: true,
-          artigos: true,
-          cliquesWhatsapp: { take: 10, orderBy: { createdAt: 'desc' } },
-          faturas: { orderBy: { createdAt: 'desc' }, take: 3 }
-        }
+        include: includeConfig
       });
     }
 
@@ -52,10 +56,17 @@ export async function GET(request: Request) {
       }
     }
 
+    const assinaturaAtiva = vet.assinaturas?.[0];
+    const planoNome = assinaturaAtiva?.plano?.nome?.replace('Plano ', '') || 'Profissional';
+
     return NextResponse.json({
       ...vet,
+      plano: planoNome,
+      planoDetalhes: assinaturaAtiva?.plano || null,
+      assinaturaAtiva,
       diasParaVencerCrmv,
-      alerta30DiasAtivo
+      alerta30DiasAtivo,
+      especialidades: vet.especialidades.map(ve => ve.especialidade)
     });
   } catch (error: any) {
     console.error('Erro ao carregar perfil do veterinário:', error);
@@ -87,7 +98,7 @@ export async function PATCH(request: Request) {
       raioAtendimentoKm,
       meiosTransporte,
       permiteVetMovelApp,
-      // Tentativa de alterar campos sensíveis:
+      // Tentativa de alterar campos sensíveis protegidos:
       nomeCompleto,
       crmvNumero,
       crmvUf,
@@ -98,9 +109,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'vetId é obrigatório.' }, { status: 400 });
     }
 
-    // TRAVA ANTI-FRAUDE:
-    // Se o usuário tentar enviar alterações para nomeCompleto, crmvNumero ou crmvUf diferentes do atual,
-    // nós bloqueamos expressamente
+    // TRAVA ANTI-FRAUDE NO BACKEND:
     const vetAtual = await prisma.veterinario.findUnique({ where: { id: vetId } });
     if (!vetAtual) {
       return NextResponse.json({ error: 'Veterinário não encontrado.' }, { status: 404 });
@@ -109,10 +118,11 @@ export async function PATCH(request: Request) {
     const tentativaFraudeNome = nomeCompleto && nomeCompleto.trim() !== vetAtual.nomeCompleto.trim();
     const tentativaFraudeCrmv = crmvNumero && crmvNumero.trim() !== vetAtual.crmvNumero.trim();
     const tentativaFraudeUf = crmvUf && crmvUf.trim().toUpperCase() !== vetAtual.crmvUf.toUpperCase();
+    const tentativaFraudeCpf = cpfCnpj && vetAtual.cpfCnpj && cpfCnpj.trim() !== vetAtual.cpfCnpj.trim();
 
-    if (tentativaFraudeNome || tentativaFraudeCrmv || tentativaFraudeUf) {
+    if (tentativaFraudeNome || tentativaFraudeCrmv || tentativaFraudeUf || tentativaFraudeCpf) {
       return NextResponse.json({
-        error: 'Segurança Anti-Fraude: Dados de identificação oficial (Nome Completo, CRMV e UF) não podem ser alterados diretamente pelo painel. Entre em contato com o suporte jurídico do portal VetBra para solicitar auditoria cadastral.'
+        error: 'Segurança Anti-Fraude: Dados de identificação oficial (Nome Completo, CRMV, UF e CPF) são estritamente bloqueados contra alteração pelo painel. Entre em contato com o suporte jurídico do portal VetBra para solicitar auditoria cadastral.'
       }, { status: 403 });
     }
 

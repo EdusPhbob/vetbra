@@ -1,59 +1,128 @@
-import { PrismaClient, Role, CrmvStatus, PlanoTipo, AssinaturaStatus } from '@prisma/client';
+import { 
+  PrismaClient, 
+  Role, 
+  VetStatusGeral, 
+  CrmvStatus, 
+  DocumentoTipo, 
+  DocumentoStatus, 
+  AssinaturaStatus, 
+  AssinaturaCiclo, 
+  FaturaStatus, 
+  MetodoPagamento, 
+  ProcedimentoCategoria 
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- Iniciando Seed VetBra ---');
+  console.log('--- Iniciando Seed VetBra Arquitetura v2 ---');
 
-  // 1. Especialidades
+  // 1. Planos do SaaS
+  const planoBasico = await prisma.plano.upsert({
+    where: { slug: 'basico' },
+    update: {},
+    create: {
+      slug: 'basico',
+      nome: 'Plano Básico',
+      descricao: 'Para veterinários autônomos que desejam presença e agendamentos no mapa.',
+      precoMensal: 79.90,
+      precoAnual: 799.00,
+      limiteEnderecos: 1,
+      destaqueBusca: false,
+      relatoriosAvanc: false,
+      ativo: true
+    }
+  });
+
+  const planoProfissional = await prisma.plano.upsert({
+    where: { slug: 'profissional' },
+    update: {},
+    create: {
+      slug: 'profissional',
+      nome: 'Plano Profissional',
+      descricao: 'O mais escolhido por clínicas e especialistas: selo oficial e relatórios.',
+      precoMensal: 149.90,
+      precoAnual: 1499.00,
+      limiteEnderecos: 2,
+      destaqueBusca: true,
+      relatoriosAvanc: true,
+      ativo: true
+    }
+  });
+
+  const planoPremium = await prisma.plano.upsert({
+    where: { slug: 'premium' },
+    update: {},
+    create: {
+      slug: 'premium',
+      nome: 'Plano Premium Top',
+      descricao: 'Destaque máximo nas buscas por CEP, selo dourado e prioridade total.',
+      precoMensal: 299.90,
+      precoAnual: 2999.00,
+      limiteEnderecos: 5,
+      destaqueBusca: true,
+      relatoriosAvanc: true,
+      ativo: true
+    }
+  });
+  console.log('✓ 3 Planos SaaS inseridos: Básico, Profissional, Premium.');
+
+  // 2. Especialidades
   const especialidadesNomes = [
-    'Clínica Geral',
-    'Cardiologia',
-    'Medicina Felina',
-    'Dermatologia',
-    'Odontologia',
-    'Ortopedia',
-    'Oftalmologia',
-    'Animais Exóticos e Silvestres',
-    'Cirurgia Geral',
-    'Acupuntura',
-    'Nutrologia',
-    'Oncologia',
-    'Fisioterapia Veterinária'
+    { nome: 'Clínica Geral', slug: 'clinica-geral' },
+    { nome: 'Cardiologia', slug: 'cardiologia' },
+    { nome: 'Medicina Felina', slug: 'medicina-felina' },
+    { nome: 'Dermatologia', slug: 'dermatologia' },
+    { nome: 'Odontologia', slug: 'odontologia' },
+    { nome: 'Ortopedia', slug: 'ortopedia' },
+    { nome: 'Oftalmologia', slug: 'oftalmologia' },
+    { nome: 'Animais Exóticos e Silvestres', slug: 'exoticos-silvestres' },
+    { nome: 'Cirurgia Geral', slug: 'cirurgia-geral' },
+    { nome: 'Acupuntura', slug: 'acupuntura' },
+    { nome: 'Nutrologia', slug: 'nutrologia' },
+    { nome: 'Oncologia', slug: 'oncologia' },
+    { nome: 'Fisioterapia Veterinária', slug: 'fisioterapia' }
   ];
 
   const especialidadesMap = new Map<string, string>();
 
-  for (const nome of especialidadesNomes) {
-    const esp = await prisma.especialidade.upsert({
-      where: { nome },
-      update: {},
-      create: { nome, descricao: `Atendimento veterinário especializado em ${nome}` }
+  for (const esp of especialidadesNomes) {
+    const item = await prisma.especialidade.upsert({
+      where: { nome: esp.nome },
+      update: { slug: esp.slug },
+      create: { 
+        nome: esp.nome, 
+        slug: esp.slug,
+        descricao: `Atendimento veterinário especializado em ${esp.nome}`,
+        ativa: true 
+      }
     });
-    especialidadesMap.set(nome, esp.id);
+    especialidadesMap.set(esp.nome, item.id);
   }
   console.log(`✓ ${especialidadesNomes.length} especialidades inseridas.`);
 
-  // 2. Admin VetBra
+  // 3. Admin VetBra
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@vetbra.com.br' },
     update: {},
     create: {
       email: 'admin@vetbra.com.br',
-      senhaHash: 'admin123', // Em prod usar bcrypt
+      login: 'admin',
+      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0', // admin123
       nome: 'Administrador VetBra',
       role: Role.ADMIN
     }
   });
-  console.log('✓ Usuário Admin criado:', adminUser.email);
+  console.log('✓ Usuário Admin configurado:', adminUser.email);
 
-  // 3. Veterinário 1 - Dr. Alexandre Mendes (São Paulo / Jardins - Verificado)
+  // 4. Veterinário 1 - Dr. Alexandre Mendes (São Paulo / Jardins - Verificado)
   const user1 = await prisma.user.upsert({
     where: { email: 'alexandre.mendes@vetbra.com' },
     update: {},
     create: {
       email: 'alexandre.mendes@vetbra.com',
-      senhaHash: 'vet123',
+      login: 'dr.alexandre',
+      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0', // vet123
       nome: 'Dr. Alexandre Mendes',
       role: Role.VET
     }
@@ -73,13 +142,19 @@ async function main() {
       bio: 'Médico Veterinário com mais de 12 anos de experiência dedicado a clínica médica, cardiologia preventiva e cirurgias de tecidos moles para cães e gatos em ambiente hospitalar moderno.',
       tempoExperienciaAnos: 12,
       fotoPerfilUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=500&auto=format&fit=crop&q=80',
+      statusGeral: VetStatusGeral.ATIVO,
       crmvNumero: '14839',
       crmvUf: 'SP',
       crmvStatus: CrmvStatus.VERIFICADO,
       crmvValidade: new Date('2027-12-31'),
       crmvUltimaVerificacao: new Date(),
-      tipoEstabelecimento: 'Clínica',
+      tipoEstabelecimento: 'Clínica Veterinária Fixa',
       meioTransporte: 'Carro',
+      meiosTransporte: ['Carro / PetMóvel', 'Atendimento Fixo'],
+      raioAtendimentoKm: 20,
+      cidadeBase: 'São Paulo',
+      estadoBase: 'SP',
+      permiteVetMovelApp: true,
       atende24h: false,
       atendeDomiciliar: true,
       atendeEmergencia: true,
@@ -87,13 +162,12 @@ async function main() {
       tiposPets: ['Cães', 'Gatos'],
       instagram: '@dr.alexandremendes',
       site: 'https://vetbrajardins.com.br',
-      plano: PlanoTipo.PREMIUM,
-      statusAssinatura: AssinaturaStatus.ATIVO,
       destaqueBusca: true,
       visualizacoesCount: 1420,
       contatosWhatsappCount: 380,
       enderecos: {
         create: {
+          tipoEndereco: 'PRINCIPAL',
           cep: '01424-001',
           logradouro: 'Alameda Lorena',
           numero: '1500',
@@ -108,19 +182,30 @@ async function main() {
       },
       procedimentos: {
         create: [
-          { nome: 'Consulta Clínica Geral', categoria: 'Consulta', preco: 180, tempoMedioMinutos: 45 },
-          { nome: 'Consulta Cardiológica + Eletrocardiograma', categoria: 'Consulta', preco: 350, tempoMedioMinutos: 60 },
-          { nome: 'Vacina Importada V10 (Cães)', categoria: 'Vacinação', preco: 110, tempoMedioMinutos: 20 },
-          { nome: 'Vacina Quádrupla Felina', categoria: 'Vacinação', preco: 120, tempoMedioMinutos: 20 },
-          { nome: 'Castração Felina Macho', categoria: 'Cirurgia', preco: 450, tempoMedioMinutos: 90 },
-          { nome: 'Atendimento Domiciliar', categoria: 'Consulta', preco: 250, tempoMedioMinutos: 60 }
+          { nome: 'Consulta Clínica Geral', categoria: ProcedimentoCategoria.CONSULTA, preco: 180, tempoMedioMinutos: 45 },
+          { nome: 'Consulta Cardiológica + Eletrocardiograma', categoria: ProcedimentoCategoria.CONSULTA, preco: 350, tempoMedioMinutos: 60 },
+          { nome: 'Vacina Importada V10 (Cães)', categoria: ProcedimentoCategoria.VACINACAO, preco: 110, tempoMedioMinutos: 20 },
+          { nome: 'Vacina Quádrupla Felina', categoria: ProcedimentoCategoria.VACINACAO, preco: 120, tempoMedioMinutos: 20 },
+          { nome: 'Castração Felina Macho', categoria: ProcedimentoCategoria.CIRURGIA, preco: 450, tempoMedioMinutos: 90 },
+          { nome: 'Atendimento Domiciliar', categoria: ProcedimentoCategoria.CONSULTA, preco: 250, tempoMedioMinutos: 60 }
         ]
       },
-      especialidades: {
-        connect: [
-          { id: especialidadesMap.get('Clínica Geral')! },
-          { id: especialidadesMap.get('Cardiologia')! },
-          { id: especialidadesMap.get('Cirurgia Geral')! }
+      documentosCrmv: {
+        create: [
+          {
+            tipo: DocumentoTipo.CARTEIRA_FRENTE,
+            arquivoUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+            status: DocumentoStatus.APROVADO,
+            analisadoPor: 'admin@vetbra.com.br',
+            analisadoEm: new Date()
+          },
+          {
+            tipo: DocumentoTipo.SELFIE_COM_DOCUMENTO,
+            arquivoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=500&auto=format&fit=crop&q=80',
+            status: DocumentoStatus.APROVADO,
+            analisadoPor: 'admin@vetbra.com.br',
+            analisadoEm: new Date()
+          }
         ]
       },
       avaliacoes: {
@@ -140,165 +225,141 @@ async function main() {
     }
   });
 
-  // 4. Veterinária 2 - Dra. Camila Barros (Animais Silvestres & Acupuntura - Verificada)
+  // Associa especialidades explicitamente
+  await prisma.veterinarioEspecialidade.upsert({
+    where: { veterinarioId_especialidadeId: { veterinarioId: vet1.id, especialidadeId: especialidadesMap.get('Clínica Geral')! } },
+    update: {},
+    create: { veterinarioId: vet1.id, especialidadeId: especialidadesMap.get('Clínica Geral')!, principal: true }
+  });
+  await prisma.veterinarioEspecialidade.upsert({
+    where: { veterinarioId_especialidadeId: { veterinarioId: vet1.id, especialidadeId: especialidadesMap.get('Cardiologia')! } },
+    update: {},
+    create: { veterinarioId: vet1.id, especialidadeId: especialidadesMap.get('Cardiologia')! }
+  });
+
+  // Assinatura e Fatura Ativas para o Dr. Alexandre
+  const assinaturaVet1 = await prisma.assinatura.upsert({
+    where: { id: `ass-${vet1.id}` },
+    update: {},
+    create: {
+      id: `ass-${vet1.id}`,
+      veterinarioId: vet1.id,
+      planoId: planoPremium.id,
+      status: AssinaturaStatus.ATIVA,
+      ciclo: AssinaturaCiclo.MENSAL,
+      valorAtual: 299.90,
+      dataInicio: new Date(),
+      faturas: {
+        create: {
+          numeroFatura: `FAT-${new Date().getFullYear()}-0001`,
+          valor: 299.90,
+          status: FaturaStatus.PAGA,
+          metodoPreferencial: MetodoPagamento.PIX,
+          dataVencimento: new Date(),
+          dataLiquidacao: new Date()
+        }
+      }
+    }
+  });
+
+  console.log(`✓ Dr. Alexandre Mendes cadastrado com CRMV Verificado e Assinatura Ativa (ID: ${assinaturaVet1.id}).`);
+
+  // 5. Veterinária 2 - Dra. Camila Barros (Animais Silvestres & Acupuntura - Verificada)
   const user2 = await prisma.user.upsert({
     where: { email: 'camila.silvestres@vetbra.com' },
     update: {},
     create: {
       email: 'camila.silvestres@vetbra.com',
-      senhaHash: 'vet123',
+      login: 'dra.camila',
+      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0',
       nome: 'Dra. Camila Barros',
       role: Role.VET
     }
   });
 
-  await prisma.veterinario.upsert({
+  const vet2 = await prisma.veterinario.upsert({
     where: { userId: user2.id },
     update: {},
     create: {
       userId: user2.id,
-      slug: 'dra-camila-barros-sp-22180',
+      slug: 'dra-camila-barros-sp-28941',
       nomeCompleto: 'Dra. Camila Barros',
-      nomeSocialOuClinica: 'Instituto Silvestre & Integrativa',
-      cpfCnpj: '23.456.789/0001-11',
-      telefone: '(11) 3214-5500',
-      whatsapp: '11977771234',
-      bio: 'Ex-veterinária residente do Zoológico de São Paulo. Especialista em atendimento clínico de animais não convencionais (aves, répteis, roedores) e fisioterapia integrativa.',
-      tempoExperienciaAnos: 9,
-      fotoPerfilUrl: 'https://images.unsplash.com/photo-1594824813590-482a0b4d455e?w=500&auto=format&fit=crop&q=80',
-      crmvNumero: '22180',
+      nomeSocialOuClinica: 'Espaço Fauna & Equilíbrio',
+      cpfCnpj: '98.765.432/0001-10',
+      telefone: '(11) 3214-9988',
+      whatsapp: '11977779988',
+      bio: 'Especialista pós-graduada em animais silvestres, aves e répteis, com formação em acupuntura veterinária e reabilitação integrativa.',
+      tempoExperienciaAnos: 8,
+      fotoPerfilUrl: 'https://images.unsplash.com/photo-1594824813593-630e2f9cb798?w=500&auto=format&fit=crop&q=80',
+      statusGeral: VetStatusGeral.ATIVO,
+      crmvNumero: '28941',
       crmvUf: 'SP',
       crmvStatus: CrmvStatus.VERIFICADO,
       crmvValidade: new Date('2028-06-30'),
       crmvUltimaVerificacao: new Date(),
-      tipoEstabelecimento: 'Autônomo Domiciliar',
-      meioTransporte: 'Moto',
+      tipoEstabelecimento: 'Consultório Fixo',
+      meioTransporte: 'Carro',
+      meiosTransporte: ['Carro / PetMóvel'],
+      raioAtendimentoKm: 30,
+      cidadeBase: 'São Paulo',
+      estadoBase: 'SP',
+      permiteVetMovelApp: true,
       atende24h: false,
       atendeDomiciliar: true,
       atendeEmergencia: false,
-      horarioFuncionamento: 'Segunda a Sexta - 09:00 às 18:00',
-      tiposPets: ['Aves', 'Répteis', 'Roedores', 'Coelhos', 'Cães', 'Gatos'],
-      instagram: '@dra.camilasilvestres',
-      plano: PlanoTipo.PROFISSIONAL,
-      statusAssinatura: AssinaturaStatus.ATIVO,
-      destaqueBusca: true,
+      tiposPets: ['Cães', 'Gatos', 'Aves', 'Silvestres'],
       visualizacoesCount: 980,
-      contatosWhatsappCount: 210,
+      contatosWhatsappCount: 240,
       enderecos: {
         create: {
-          cep: '04530-001',
-          logradouro: 'Rua Tabapuã',
-          numero: '800',
-          bairro: 'Itaim Bibi',
+          tipoEndereco: 'PRINCIPAL',
+          cep: '05010-000',
+          logradouro: 'Rua Cardoso de Almeida',
+          numero: '820',
+          bairro: 'Perdizes',
           cidade: 'São Paulo',
           estado: 'SP',
-          latitude: -23.5855,
-          longitude: -46.6784,
-          raioKmAtendimento: 25
+          latitude: -23.5385,
+          longitude: -46.6698,
+          raioKmAtendimento: 30
         }
       },
       procedimentos: {
         create: [
-          { nome: 'Consulta de Animais Silvestres / Aves / Répteis', categoria: 'Consulta', preco: 220, tempoMedioMinutos: 60 },
-          { nome: 'Sessão de Acupuntura Veterinária', categoria: 'Consulta', preco: 190, tempoMedioMinutos: 50 },
-          { nome: 'Corte de Unhas / Bico de Aves e Roedores', categoria: 'Estética', preco: 70, tempoMedioMinutos: 20 },
-          { nome: 'Atendimento Domiciliar Silvestres', categoria: 'Consulta', preco: 300, tempoMedioMinutos: 70 }
-        ]
-      },
-      especialidades: {
-        connect: [
-          { id: especialidadesMap.get('Animais Exóticos e Silvestres')! },
-          { id: especialidadesMap.get('Acupuntura')! },
-          { id: especialidadesMap.get('Fisioterapia Veterinária')! }
-        ]
-      },
-      avaliacoes: {
-        create: [
-          {
-            nomeTutor: 'Fernanda Rocha',
-            nota: 5,
-            comentario: 'A Dra. Camila é maravilhosa! Cuidou do meu papagaio com um carinho ímpar.'
-          }
+          { nome: 'Consulta de Aves e Silvestres', categoria: ProcedimentoCategoria.CONSULTA, preco: 220, tempoMedioMinutos: 50 },
+          { nome: 'Sessão de Acupuntura Veterinária', categoria: ProcedimentoCategoria.CONSULTA, preco: 190, tempoMedioMinutos: 45 }
         ]
       }
     }
   });
 
-  // 5. Veterinário 3 - Dr. Roberto Silveira (CRMV PENDENTE PARA AUDITORIA NO PAINEL ADMIN)
-  const user3 = await prisma.user.upsert({
-    where: { email: 'roberto.silveira@hospitalvet.com.br' },
+  await prisma.veterinarioEspecialidade.upsert({
+    where: { veterinarioId_especialidadeId: { veterinarioId: vet2.id, especialidadeId: especialidadesMap.get('Animais Exóticos e Silvestres')! } },
+    update: {},
+    create: { veterinarioId: vet2.id, especialidadeId: especialidadesMap.get('Animais Exóticos e Silvestres')!, principal: true }
+  });
+
+  await prisma.assinatura.upsert({
+    where: { id: `ass-${vet2.id}` },
     update: {},
     create: {
-      email: 'roberto.silveira@hospitalvet.com.br',
-      senhaHash: 'vet123',
-      nome: 'Dr. Roberto Silveira',
-      role: Role.VET
+      id: `ass-${vet2.id}`,
+      veterinarioId: vet2.id,
+      planoId: planoProfissional.id,
+      status: AssinaturaStatus.ATIVA,
+      ciclo: AssinaturaCiclo.MENSAL,
+      valorAtual: 149.90,
+      dataInicio: new Date()
     }
   });
 
-  await prisma.veterinario.upsert({
-    where: { userId: user3.id },
-    update: {},
-    create: {
-      userId: user3.id,
-      slug: 'dr-roberto-silveira-sp-34991',
-      nomeCompleto: 'Dr. Roberto Silveira',
-      nomeSocialOuClinica: 'Hospital Veterinário 24 Horas Pinheiros',
-      cpfCnpj: '34.567.890/0001-22',
-      telefone: '(11) 3812-9900',
-      whatsapp: '11966665432',
-      bio: 'Especialista em cirurgias ortopédicas complexas e atendimento emergencial 24h. Unidade com UTI equipada e pronto-socorro cirúrgico.',
-      tempoExperienciaAnos: 15,
-      fotoPerfilUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=500&auto=format&fit=crop&q=80',
-      crmvNumero: '34991',
-      crmvUf: 'SP',
-      crmvStatus: CrmvStatus.PENDENTE, // PENDENTE DE APROVAÇÃO
-      crmvNotasAuditoria: 'Cadastrou há pouco, anexou Cédula do CRMV-SP para validação.',
-      tipoEstabelecimento: 'Hospital 24h',
-      atende24h: true,
-      atendeDomiciliar: false,
-      atendeEmergencia: true,
-      horarioFuncionamento: 'Plantão 24 Horas Ininterrupto',
-      tiposPets: ['Cães', 'Gatos'],
-      plano: PlanoTipo.BASICO,
-      statusAssinatura: AssinaturaStatus.ATIVO,
-      destaqueBusca: false,
-      visualizacoesCount: 120,
-      contatosWhatsappCount: 15,
-      enderecos: {
-        create: {
-          cep: '05422-001',
-          logradouro: 'Rua dos Pinheiros',
-          numero: '1200',
-          bairro: 'Pinheiros',
-          cidade: 'São Paulo',
-          estado: 'SP',
-          latitude: -23.5658,
-          longitude: -46.6895
-        }
-      },
-      procedimentos: {
-        create: [
-          { nome: 'Plantão Emergencial 24h', categoria: 'Emergência', preco: 250, tempoMedioMinutos: 40 },
-          { nome: 'Cirurgia Ortopédica (Fratura / Ruptura de Ligamento)', categoria: 'Cirurgia', preco: 1800, tempoMedioMinutos: 180 },
-          { nome: 'Raio-X Digital (2 Projeções)', categoria: 'Exame', preco: 180, tempoMedioMinutos: 30 }
-        ]
-      },
-      especialidades: {
-        connect: [
-          { id: especialidadesMap.get('Ortopedia')! },
-          { id: especialidadesMap.get('Cirurgia Geral')! }
-        ]
-      }
-    }
-  });
-
-  console.log('✓ Veterinários e procedimentos semeados com sucesso!');
+  console.log('✓ Dra. Camila Barros inserida com sucesso.');
+  console.log('--- Seed VetBra v2 Finalizado com Êxito! ---');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Erro no seed:', e);
     process.exit(1);
   })
   .finally(async () => {

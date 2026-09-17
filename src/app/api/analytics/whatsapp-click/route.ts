@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         data: {
           veterinarioId,
           origem,
-          ip,
+          ipAnonimizado: ip,
           userAgent
         }
       })

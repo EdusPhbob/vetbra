@@ -27,13 +27,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const vet = await prisma.veterinario.findFirst({
     where: { OR: [{ slug }, { id: slug }] },
-    include: { enderecos: true, especialidades: true }
+    include: {
+      enderecos: true,
+      especialidades: { include: { especialidade: true } }
+    }
   });
 
   if (!vet) return { title: 'Veterinário não encontrado | VetBra' };
 
   const cidade = vet.enderecos[0]?.cidade || 'Brasil';
-  const especialidade = vet.especialidades[0]?.nome || 'Veterinária Geral';
+  const especialidade = vet.especialidades[0]?.especialidade?.nome || 'Veterinária Geral';
 
   return {
     title: `${vet.nomeCompleto} - ${especialidade} em ${cidade} | CRMV ${formatCrmv(vet.crmvNumero, vet.crmvUf)}`,
@@ -52,7 +55,7 @@ export default async function VetProfilePage({ params }: Props) {
     where: { OR: [{ slug }, { id: slug }] },
     include: {
       enderecos: true,
-      especialidades: true,
+      especialidades: { include: { especialidade: true } },
       procedimentos: { where: { ativo: true }, orderBy: { categoria: 'asc' } },
       avaliacoes: { orderBy: { createdAt: 'desc' } }
     }
@@ -229,7 +232,7 @@ export default async function VetProfilePage({ params }: Props) {
                           <span className="text-xs font-bold text-slate-500">Sob Consulta</span>
                         ) : (
                           <span className="text-sm font-black text-slate-900">
-                            R$ {proc.preco.toFixed(2).replace('.', ',')}
+                            R$ {Number(proc.preco).toFixed(2).replace('.', ',')}
                           </span>
                         )}
                       </div>

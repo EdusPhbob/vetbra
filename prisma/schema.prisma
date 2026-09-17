@@ -1,4 +1,4 @@
-// Prisma schema for VetBra
+// Prisma schema for VetBra — SaaS Architecture v2.0
 
 generator client {
   provider = "prisma-client-js"
@@ -9,220 +9,137 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -------------------------------------------------------------
+// ENUMS DO SISTEMA
+// -------------------------------------------------------------
+
 enum Role {
   VET
   ADMIN
+  AUDITOR
+}
+
+enum VetStatusGeral {
+  CADASTRO_INCOMPLETO
+  AGUARDANDO_APROVACAO
+  ATIVO
+  SUSPENSO
+  BLOQUEADO
 }
 
 enum CrmvStatus {
   PENDENTE
-  VERIFICADO
   EM_ANALISE
+  VERIFICADO
+  EXPIRADO
   SUSPENSO
   REJEITADO
 }
 
-enum PlanoTipo {
-  BASICO
-  PROFISSIONAL
-  PREMIUM
+enum DocumentoTipo {
+  CARTEIRA_FRENTE
+  CARTEIRA_VERSO
+  SELFIE_COM_DOCUMENTO
+  COMPROVANTE_RENOVACAO
+  DIPLOMA
+}
+
+enum DocumentoStatus {
+  ENVIADO
+  EM_ANALISE
+  APROVADO
+  REJEITADO
+  SUBSTITUIDO
+}
+
+enum EnderecoTipo {
+  PRINCIPAL
+  FILIAL
+  PONTO_APOIO
+}
+
+enum AssinaturaCiclo {
+  MENSAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
 }
 
 enum AssinaturaStatus {
-  ATIVO
+  TRIAL
   PENDENTE
-  CANCELADO
-  INADIMPLENTE
+  ATIVA
+  EM_ATRASO
+  CANCELADA
+  EXPIRADA
 }
 
 enum FaturaStatus {
   PENDENTE
-  PAGO
-  EXPIRADO
-  CANCELADO
+  PAGA
+  EXPIRADA
+  CANCELADA
+  FALHADA
 }
 
 enum MetodoPagamento {
   PIX
   BOLETO
-  CARTAO
+  CARTAO_CREDITO
 }
+
+enum PagamentoStatus {
+  PROCESSANDO
+  APROVADO
+  RECUSADO
+  ESTORNADO
+}
+
+enum AvaliacaoStatus {
+  PENDENTE_MODERACAO
+  PUBLICADA
+  REJEITADA
+  DENUNCIADA
+}
+
+enum ProcedimentoCategoria {
+  CONSULTA
+  VACINACAO
+  CIRURGIA
+  EXAME
+  EMERGENCIA
+  ESTETICA
+  INTERNACAO
+}
+
+// -------------------------------------------------------------
+// MÓDULO 1: IDENTIDADE, ACESSO & SEGURANÇA
+// -------------------------------------------------------------
 
 model User {
   id            String       @id @default(uuid())
   email         String       @unique
   login         String?      @unique
-  senhaHash     String
+  senhaHash     String       // Criptografado com bcryptjs (10 rounds)
   nome          String
   role          Role         @default(VET)
+  ativo         Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   veterinario   Veterinario?
-}
+  resetTokens   PasswordResetToken[]
 
-model Veterinario {
-  id                    String            @id @default(uuid())
-  userId                String            @unique
-  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  slug                  String            @unique
-  nomeCompleto          String
-  nomeSocialOuClinica   String?
-  cpfCnpj               String?
-  telefone              String?
-  whatsapp              String
-  bio                   String?
-  tempoExperienciaAnos  Int?              @default(0)
-  fotoPerfilUrl         String?
-  bannerUrl             String?
-  
-  // CRMV & Validação Anti-Fraude
-  crmvNumero            String
-  crmvUf                String
-  crmvStatus            CrmvStatus        @default(PENDENTE)
-  crmvValidade          DateTime?
-  crmvDocumentoUrl      String?           // Foto da carteira profissional CRMV
-  crmvSelfieUrl         String?           // Foto segurando o documento (selfie anti-fraude)
-  crmvComprovanteUrl    String?           // Comprovante complementar
-  crmvAlerta30diasEnviado Boolean         @default(false)
-  crmvUltimaVerificacao DateTime?
-  crmvNotasAuditoria    String?
-  
-  // Tipo de Atendimento & Deslocamento
-  tipoEstabelecimento   String            @default("Clinica") // Clinica, Consultorio, Hospital 24h, Atendimento Domiciliar / VetMóvel
-  meioTransporte        String?           @default("Nenhum")  // Legado / compatibilidade
-  meiosTransporte       String[]          @default([])        // CARRO_PETMOVEL, CARRO_AMBULANCIA, MOTO, FIXO
-  raioAtendimentoKm     Int?              @default(15)        // 5, 15, 30 ou 99999 (Sem Limites)
-  cidadeBase            String?           @default("São Paulo")
-  estadoBase            String?           @default("SP")
-  permiteVetMovelApp    Boolean           @default(false)     // Modo VetMóvel para futuro app de transporte pet
-  atende24h             Boolean           @default(false)
-  atendeDomiciliar      Boolean           @default(false)
-  atendeEmergencia      Boolean           @default(false)
-  horarioFuncionamento  String?           @default("Segunda a Sexta - 08:00 às 18:00")
-  tiposPets             String[]          @default(["Cães", "Gatos"])
-  
-  // Redes Sociais
-  instagram             String?
-  facebook              String?
-  site                  String?
-
-  // Monetização / Plano
-  plano                 PlanoTipo         @default(BASICO)
-  statusAssinatura      AssinaturaStatus  @default(ATIVO)
-  destaqueBusca         Boolean           @default(false)
-  visualizacoesCount    Int               @default(0)
-  contatosWhatsappCount Int               @default(0)
-
-  // Relações
-  enderecos             Endereco[]
-  especialidades        Especialidade[]
-  procedimentos         Procedimento[]
-  avaliacoes            Avaliacao[]
-  auditorias            CrmvAuditoriaLog[]
-  artigos               Artigo[]
-  cliquesWhatsapp       CliqueWhatsappLog[]
-  faturas               FaturaCobranca[]
-
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-}
-
-model Endereco {
-  id                String      @id @default(uuid())
-  veterinarioId     String
-  veterinario       Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-
-  tipoEndereco      String      @default("PRINCIPAL") // PRINCIPAL, FILIAL
-  cep               String
-  logradouro        String
-  numero            String
-  complemento       String?
-  bairro            String
-  cidade            String
-  estado            String      // SP, RJ, etc.
-  latitude          Float?
-  longitude         Float?
-  raioKmAtendimento Int?        @default(15) // Para atendimento a domicílio
-
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-}
-
-model Especialidade {
-  id            String        @id @default(uuid())
-  nome          String        @unique // Ex: Clínica Geral, Dermatologia, Ortopedia
-  descricao     String?
-  veterinarios  Veterinario[]
-
-  createdAt     DateTime      @default(now())
-}
-
-model Procedimento {
-  id                String      @id @default(uuid())
-  veterinarioId     String
-  veterinario       Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-
-  nome              String      // Ex: Consulta Clínica Geral, Vacina V10, Castração
-  categoria         String      // Consulta, Vacinação, Cirurgia, Exame, Emergência, Estética
-  preco             Float       // Valor em R$
-  precoSobConsulta  Boolean     @default(false)
-  descricao         String?
-  tempoMedioMinutos Int?
-
-  ativo             Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-}
-
-model Avaliacao {
-  id            String      @id @default(uuid())
-  veterinarioId String
-  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-
-  nomeTutor     String
-  nota          Int         // 1 a 5
-  comentario    String
-  createdAt     DateTime    @default(now())
-}
-
-model CrmvAuditoriaLog {
-  id            String      @id @default(uuid())
-  veterinarioId String
-  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-
-  adminEmail    String
-  statusAnterior CrmvStatus
-  statusNovo    CrmvStatus
-  motivo        String?
-  createdAt     DateTime    @default(now())
-}
-
-model Artigo {
-  id            String      @id @default(uuid())
-  veterinarioId String
-  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-
-  titulo        String
-  slug          String      @unique
-  resumo        String
-  conteudo      String      @db.Text
-  fotoUrl       String?
-  categoria     String      @default("Clínica Geral")
-  publicado     Boolean     @default(true)
-  visualizacoes Int         @default(0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  @@index([veterinarioId])
-  @@index([categoria])
+  @@index([email])
+  @@index([login])
 }
 
 model PasswordResetToken {
   id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   email     String
-  codigo    String   // Código numérico de 6 dígitos para WhatsApp/Email
+  codigo    String   // Código de 6 dígitos numéricos para envio por WhatsApp/E-mail
   token     String   @unique
   expiraEm  DateTime
   usado     Boolean  @default(false)
@@ -230,24 +147,333 @@ model PasswordResetToken {
 
   @@index([email])
   @@index([codigo])
+  @@index([token])
 }
 
-model CliqueWhatsappLog {
+// -------------------------------------------------------------
+// MÓDULO 2: O PROFISSIONAL & CONTROLE ANTI-FRAUDE
+// -------------------------------------------------------------
+
+model Veterinario {
+  id                    String            @id @default(uuid())
+  userId                String            @unique
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  slug                  String            @unique // dr-nome-uf-crmv
+  nomeCompleto          String            // PROTEGIDO: Bloqueado contra alteração no painel
+  nomeSocialOuClinica   String?           // Nome Fantasia editável livremente
+  cpfCnpj               String?           @unique // PROTEGIDO: Bloqueado contra alteração
+  telefone              String?
+  whatsapp              String            // Usado para botões de agendamento e telemetria
+  bio                   String?           @db.Text
+  tempoExperienciaAnos  Int?              @default(0)
+  fotoPerfilUrl         String?           // Obrigatória no cadastro
+  bannerUrl             String?
+
+  // Status Operacional & CRMV
+  statusGeral           VetStatusGeral    @default(AGUARDANDO_APROVACAO)
+  crmvNumero            String            // PROTEGIDO: Bloqueado contra alteração
+  crmvUf                String            // PROTEGIDO: Bloqueado contra alteração
+  crmvStatus            CrmvStatus        @default(PENDENTE)
+  crmvValidade          DateTime?         // Data limite da carteira profissional
+  crmvAlerta30diasEnviado Boolean         @default(false)
+  crmvUltimaVerificacao DateTime?
+  crmvNotasAuditoria    String?
+
+  // Atendimento & Mobilidade
+  tipoEstabelecimento   String            @default("Clínica Veterinária Fixa")
+  meioTransporte        String?           @default("Carro") // Legado / compatibilidade
+  meiosTransporte       String[]          @default([]) // Carro/PetMóvel, Ambulância, Moto, Fixo
+  raioAtendimentoKm     Int?              @default(15) // 5, 15, 30 ou 99999 (Sem Limites)
+  cidadeBase            String            @default("São Paulo")
+  estadoBase            String            @default("SP")
+  permiteVetMovelApp    Boolean           @default(false)
+  atende24h             Boolean           @default(false)
+  atendeDomiciliar      Boolean           @default(false)
+  atendeEmergencia      Boolean           @default(false)
+  horarioFuncionamento  String?           @default("Segunda a Sexta - 08:00 às 18:00")
+  tiposPets             String[]          @default(["Cães", "Gatos"])
+
+  // Redes Sociais
+  instagram             String?
+  facebook              String?
+  site                  String?
+
+  // Métricas de Desempenho & Destaque
+  destaqueBusca         Boolean           @default(false)
+  visualizacoesCount    Int               @default(0)
+  contatosWhatsappCount Int               @default(0)
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relacionamentos
+  documentosCrmv        CrmvDocumento[]
+  auditoriasCrmv        CrmvAuditoriaLog[]
+  enderecos             Endereco[]
+  especialidades        VeterinarioEspecialidade[]
+  procedimentos         Procedimento[]
+  avaliacoes            Avaliacao[]
+  assinaturas           Assinatura[]
+  cliquesWhatsapp       CliqueWhatsappLog[]
+  artigos               Artigo[]
+
+  @@unique([crmvNumero, crmvUf])
+  @@index([crmvNumero, crmvUf])
+  @@index([cidadeBase, estadoBase])
+  @@index([statusGeral])
+  @@index([crmvStatus])
+  @@index([crmvValidade])
+}
+
+// Histórico de Documentos para Validação e Futuras Renovações
+model CrmvDocumento {
+  id              String          @id @default(uuid())
+  veterinarioId   String
+  veterinario     Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  tipo            DocumentoTipo   // CARTEIRA_FRENTE, CARTEIRA_VERSO, SELFIE_COM_DOCUMENTO, etc.
+  arquivoUrl      String
+  hashArquivo     String?         // SHA-256 para integridade e anti-duplicação
+  status          DocumentoStatus @default(ENVIADO)
+  observacoes     String?
+  analisadoPor    String?         // E-mail do auditor responsável
+  analisadoEm     DateTime?
+  enviadoEm       DateTime        @default(now())
+
+  @@index([veterinarioId])
+  @@index([tipo])
+  @@index([status])
+}
+
+// Trilha de Auditoria do CRMV
+model CrmvAuditoriaLog {
+  id              String          @id @default(uuid())
+  veterinarioId   String
+  veterinario     Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  adminEmail      String
+  statusAnterior  CrmvStatus
+  statusNovo      CrmvStatus
+  motivo          String?         @db.Text
+  createdAt       DateTime        @default(now())
+
+  @@index([veterinarioId])
+  @@index([createdAt])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 3: ENDEREÇOS & FILIAIS
+// -------------------------------------------------------------
+
+model Endereco {
+  id                String          @id @default(uuid())
+  veterinarioId     String
+  veterinario       Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  tipoEndereco      EnderecoTipo    @default(PRINCIPAL)
+  cep               String
+  logradouro        String
+  numero            String          // OBRIGATÓRIO
+  complemento       String?
+  bairro            String
+  cidade            String
+  estado            String          // UF (2 dígitos)
+  latitude          Float?
+  longitude         Float?
+  raioKmAtendimento Int?            @default(15)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([veterinarioId])
+  @@index([cep])
+  @@index([cidade, estado])
+  @@index([latitude, longitude])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 4: ESPECIALIDADES & PROCEDIMENTOS
+// -------------------------------------------------------------
+
+model Especialidade {
+  id            String                      @id @default(uuid())
+  nome          String                      @unique // Ex: Clínica Geral, Ortopedia
+  slug          String?                     @unique
+  descricao     String?
+  iconeUrl      String?
+  ativa         Boolean                     @default(true)
+  createdAt     DateTime                    @default(now())
+
+  veterinarios  VeterinarioEspecialidade[]
+}
+
+// Tabela associativa explícita N:N
+model VeterinarioEspecialidade {
+  id                String          @id @default(uuid())
+  veterinarioId     String
+  veterinario       Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  especialidadeId   String
+  especialidade     Especialidade   @relation(fields: [especialidadeId], references: [id], onDelete: Cascade)
+
+  principal         Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+
+  @@unique([veterinarioId, especialidadeId])
+  @@index([veterinarioId])
+  @@index([especialidadeId])
+}
+
+model Procedimento {
+  id                String                 @id @default(uuid())
+  veterinarioId     String
+  veterinario       Veterinario            @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  nome              String
+  categoria         ProcedimentoCategoria  @default(CONSULTA)
+  preco             Decimal                @db.Decimal(10, 2)
+  precoSobConsulta  Boolean                @default(false)
+  descricao         String?                @db.Text
+  tempoMedioMinutos Int?                   @default(30)
+  ativo             Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([veterinarioId])
+  @@index([categoria])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 5: SAAS, PLANOS & COBRANÇA RECORRENTE
+// -------------------------------------------------------------
+
+model Plano {
+  id                String          @id @default(uuid())
+  slug              String          @unique // basico, profissional, premium
+  nome              String          // Ex: Plano Profissional
+  descricao         String?
+  precoMensal       Decimal         @db.Decimal(10, 2)
+  precoAnual        Decimal?        @db.Decimal(10, 2)
+  limiteEnderecos   Int             @default(1)
+  destaqueBusca     Boolean         @default(false)
+  relatoriosAvanc   Boolean         @default(false)
+  ativo             Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  assinaturas       Assinatura[]
+}
+
+model Assinatura {
+  id                    String            @id @default(uuid())
+  veterinarioId         String
+  veterinario           Veterinario       @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  planoId               String
+  plano                 Plano             @relation(fields: [planoId], references: [id])
+
+  status                AssinaturaStatus  @default(PENDENTE)
+  ciclo                 AssinaturaCiclo   @default(MENSAL)
+  valorAtual            Decimal           @db.Decimal(10, 2)
+  dataInicio            DateTime          @default(now())
+  dataFimPeriodo        DateTime?
+  canceladaEm           DateTime?
+  gatewayAssinaturaId   String?           // ID da assinatura no Asaas/MercadoPago/Pagar.me
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  faturas               FaturaCobranca[]
+
+  @@index([veterinarioId])
+  @@index([planoId])
+  @@index([status])
+}
+
+model FaturaCobranca {
+  id                    String            @id @default(uuid())
+  assinaturaId          String
+  assinatura            Assinatura        @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+
+  numeroFatura          String            @unique // Ex: FAT-2026-0001
+  valor                 Decimal           @db.Decimal(10, 2)
+  status                FaturaStatus      @default(PENDENTE)
+  metodoPreferencial    MetodoPagamento   @default(PIX)
+
+  pixCopiaCola          String?           @db.Text
+  pixQrCodeUrl          String?
+  boletoCodigoBarras    String?
+  boletoLinhaDigitavel  String?
+  boletoPdfUrl          String?
+  gatewayCobrancaId     String?           @unique // ID da cobrança no gateway
+
+  dataVencimento        DateTime
+  dataLiquidacao        DateTime?
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  pagamentos            Pagamento[]
+
+  @@index([assinaturaId])
+  @@index([status])
+  @@index([dataVencimento])
+}
+
+model Pagamento {
+  id                    String            @id @default(uuid())
+  faturaId              String
+  fatura                FaturaCobranca    @relation(fields: [faturaId], references: [id], onDelete: Cascade)
+
+  metodo                MetodoPagamento
+  status                PagamentoStatus   @default(PROCESSANDO)
+  valorPago             Decimal           @db.Decimal(10, 2)
+  taxaGateway           Decimal?          @db.Decimal(10, 2)
+  idempotencyKey        String            @unique // Chave única para evitar processamento duplicado
+  gatewayTransacaoId    String?           @unique // ID da transação no banco/gateway
+  pixEndToEndId         String?           @unique // Código E2E único do Banco Central (Pix)
+  pagoEm                DateTime?
+
+  createdAt             DateTime          @default(now())
+
+  @@index([faturaId])
+  @@index([status])
+}
+
+model WebhookEvent {
   id            String      @id @default(uuid())
-  veterinarioId String
-  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-  origem        String      @default("PERFIL") // PERFIL, CARD_BUSCA, MAPA
-  ip            String?
-  userAgent     String?
-  cidadeTutor   String?
+  gateway       String      // ASAAS, MERCADOPAGO, EFI, etc.
+  eventId       String      @unique // ID do evento enviado pelo gateway
+  tipoEvento    String      // PAYMENT_RECEIVED, INVOICE_OVERDUE, etc.
+  payloadJson   Json
+  processado    Boolean     @default(false)
+  processadoEm  DateTime?
+  erroMsg       String?
   createdAt     DateTime    @default(now())
+
+  @@index([gateway, eventId])
+  @@index([processado])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 6: TELEMETRIA, INTELIGÊNCIA DE MERCADO, ARTIGOS & REVIEWS
+// -------------------------------------------------------------
+
+model CliqueWhatsappLog {
+  id            String          @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  origem        String          @default("PERFIL_TOP") // PERFIL_TOP, CARD_BUSCA, MAPA_POPUP
+  ipAnonimizado String?         // Truncado para conformidade com LGPD
+  userAgent     String?
+  createdAt     DateTime        @default(now())
 
   @@index([veterinarioId])
   @@index([createdAt])
 }
 
 model BuscaLeadLog {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   termo         String?
   cep           String?
   cidade        String?
@@ -255,31 +481,46 @@ model BuscaLeadLog {
   tipoPet       String?
   especialidade String?
   ip            String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime        @default(now())
 
   @@index([cep])
   @@index([cidade, estado])
   @@index([createdAt])
 }
 
-model FaturaCobranca {
-  id                   String          @id @default(uuid())
-  veterinarioId        String
-  veterinario          Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
-  plano                PlanoTipo
-  valor                Float
-  status               FaturaStatus    @default(PENDENTE)
-  metodo               MetodoPagamento @default(PIX)
-  pixCopiaCola         String?
-  pixQrCodeUrl         String?
-  boletoCodigoBarras   String?
-  boletoLinhaDigitavel String?
-  boletoPdfUrl         String?
-  dataVencimento       DateTime
-  dataPagamento        DateTime?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+model Avaliacao {
+  id            String          @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  nomeTutor     String
+  telefoneHash  String?         // Hash SHA-256 do telefone para evitar spam e respeitar LGPD
+  nota          Int             // 1 a 5 estrelas
+  comentario    String          @db.Text
+  status        AvaliacaoStatus @default(PENDENTE_MODERACAO)
+  ip            String?
+  createdAt     DateTime        @default(now())
 
   @@index([veterinarioId])
   @@index([status])
+}
+
+model Artigo {
+  id            String          @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  titulo        String
+  slug          String          @unique
+  resumo        String
+  conteudo      String          @db.Text
+  fotoUrl       String?
+  categoria     String          @default("Clínica Geral")
+  publicado     Boolean         @default(true)
+  visualizacoes Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([veterinarioId])
+  @@index([categoria])
 }

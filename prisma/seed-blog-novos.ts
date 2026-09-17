@@ -1,9 +1,22 @@
-import { PrismaClient, CrmvStatus, PlanoTipo, AssinaturaStatus, Role } from '@prisma/client';
+import { 
+  PrismaClient, 
+  CrmvStatus, 
+  Role, 
+  VetStatusGeral, 
+  AssinaturaStatus, 
+  AssinaturaCiclo, 
+  ProcedimentoCategoria 
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- Populando Artigos, Avaliações e Novos Perfis ---');
+  console.log('--- Populando Artigos, Avaliações e Novos Perfis (v2) ---');
+
+  // Buscar plano profissional para associar
+  const planoProfissional = await prisma.plano.findFirst({
+    where: { slug: 'profissional' }
+  });
 
   // Buscar veterinários existentes
   const vetAlexandre = await prisma.veterinario.findFirst({
@@ -20,7 +33,7 @@ async function main() {
     update: {},
     create: {
       email: 'veronica.kasper@vetbra.com',
-      senhaHash: 'vet123',
+      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0',
       nome: 'Dra. Verônica Kasper',
       role: Role.VET
     }
@@ -39,13 +52,11 @@ async function main() {
       crmvUf: 'SP',
       crmvStatus: CrmvStatus.VERIFICADO,
       crmvValidade: new Date('2028-05-10'),
+      statusGeral: VetStatusGeral.ATIVO,
       fotoPerfilUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=500&auto=format&fit=crop&q=80',
       tipoEstabelecimento: 'Clínica',
       atende24h: false,
       atendeDomiciliar: true,
-      plano: PlanoTipo.PROFISSIONAL,
-      statusAssinatura: AssinaturaStatus.ATIVO,
-      destaqueBusca: true,
       enderecos: {
         create: {
           cep: '04538-133',
@@ -58,8 +69,8 @@ async function main() {
       },
       procedimentos: {
         create: [
-          { nome: 'Consulta Dermatológica Pet', categoria: 'Consulta', preco: 210, tempoMedioMinutos: 45 },
-          { nome: 'Raspagem de Pele e Citologia', categoria: 'Exame', preco: 130, tempoMedioMinutos: 30 }
+          { nome: 'Consulta Dermatológica Pet', categoria: ProcedimentoCategoria.CONSULTA, preco: 210, tempoMedioMinutos: 45 },
+          { nome: 'Raspagem de Pele e Citologia', categoria: ProcedimentoCategoria.EXAME, preco: 130, tempoMedioMinutos: 30 }
         ]
       }
     }
@@ -70,7 +81,7 @@ async function main() {
     update: {},
     create: {
       email: 'thiago.silva@vetbra.com',
-      senhaHash: 'vet123',
+      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0',
       nome: 'Dr. Thiago Lima Maurício da Silva',
       role: Role.VET
     }
@@ -89,13 +100,11 @@ async function main() {
       crmvUf: 'SP',
       crmvStatus: CrmvStatus.VERIFICADO,
       crmvValidade: new Date('2028-08-20'),
+      statusGeral: VetStatusGeral.ATIVO,
       fotoPerfilUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=500&auto=format&fit=crop&q=80',
       tipoEstabelecimento: 'Clínica',
       atende24h: false,
       atendeDomiciliar: true,
-      plano: PlanoTipo.PROFISSIONAL,
-      statusAssinatura: AssinaturaStatus.ATIVO,
-      destaqueBusca: true,
       enderecos: {
         create: {
           cep: '06501-001',
@@ -108,40 +117,71 @@ async function main() {
       },
       procedimentos: {
         create: [
-          { nome: 'Sessão de Fisioterapia e Reabilitação', categoria: 'Consulta', preco: 180, tempoMedioMinutos: 60 }
+          { nome: 'Sessão de Fisioterapia e Reabilitação', categoria: ProcedimentoCategoria.CONSULTA, preco: 180, tempoMedioMinutos: 60 }
         ]
       }
     }
   });
 
-  // Conectar especialidades aos novos
-  const espDerma = await prisma.especialidade.findUnique({ where: { nome: 'Dermatologia' } });
-  const espFisio = await prisma.especialidade.findUnique({ where: { nome: 'Fisioterapia Veterinária' } });
-  const espClinica = await prisma.especialidade.findUnique({ where: { nome: 'Clínica Geral' } });
+  // Assinaturas v2
+  if (planoProfissional) {
+    await prisma.assinatura.upsert({
+      where: { id: `ass-${vetVeronika.id}` },
+      update: {},
+      create: {
+        id: `ass-${vetVeronika.id}`,
+        veterinarioId: vetVeronika.id,
+        planoId: planoProfissional.id,
+        status: AssinaturaStatus.ATIVA,
+        ciclo: AssinaturaCiclo.MENSAL,
+        valorAtual: planoProfissional.precoMensal,
+        dataInicio: new Date()
+      }
+    });
 
-  if (espDerma && espClinica) {
-    await prisma.veterinario.update({
-      where: { id: vetVeronika.id },
-      data: {
-        especialidades: {
-          connect: [{ id: espDerma.id }, { id: espClinica.id }]
-        }
+    await prisma.assinatura.upsert({
+      where: { id: `ass-${vetThiago.id}` },
+      update: {},
+      create: {
+        id: `ass-${vetThiago.id}`,
+        veterinarioId: vetThiago.id,
+        planoId: planoProfissional.id,
+        status: AssinaturaStatus.ATIVA,
+        ciclo: AssinaturaCiclo.MENSAL,
+        valorAtual: planoProfissional.precoMensal,
+        dataInicio: new Date()
       }
     });
   }
 
+  // Conectar especialidades aos novos veterinários
+  const espDerma = await prisma.especialidade.findFirst({ where: { nome: 'Dermatologia' } });
+  const espFisio = await prisma.especialidade.findFirst({ where: { nome: 'Fisioterapia Veterinária' } });
+  const espClinica = await prisma.especialidade.findFirst({ where: { nome: 'Clínica Geral' } });
+
+  if (espDerma) {
+    await prisma.veterinarioEspecialidade.upsert({
+      where: { veterinarioId_especialidadeId: { veterinarioId: vetVeronika.id, especialidadeId: espDerma.id } },
+      update: {},
+      create: { veterinarioId: vetVeronika.id, especialidadeId: espDerma.id, principal: true }
+    });
+  }
+  if (espClinica) {
+    await prisma.veterinarioEspecialidade.upsert({
+      where: { veterinarioId_especialidadeId: { veterinarioId: vetVeronika.id, especialidadeId: espClinica.id } },
+      update: {},
+      create: { veterinarioId: vetVeronika.id, especialidadeId: espClinica.id }
+    });
+  }
   if (espFisio) {
-    await prisma.veterinario.update({
-      where: { id: vetThiago.id },
-      data: {
-        especialidades: {
-          connect: [{ id: espFisio.id }]
-        }
-      }
+    await prisma.veterinarioEspecialidade.upsert({
+      where: { veterinarioId_especialidadeId: { veterinarioId: vetThiago.id, especialidadeId: espFisio.id } },
+      update: {},
+      create: { veterinarioId: vetThiago.id, especialidadeId: espFisio.id, principal: true }
     });
   }
 
-  // 3. Artigos de Blog (cadastrados por veterinários reais)
+  // 3. Artigos de Blog
   if (vetAlexandre) {
     await prisma.artigo.upsert({
       where: { slug: 'sistema-endocrino-caes-gatos-como-funciona' },
@@ -228,7 +268,7 @@ async function main() {
     });
   }
 
-  console.log('✓ Artigos, avaliações e novos perfis adicionados com sucesso!');
+  console.log('✓ Artigos, avaliações e novos perfis v2 adicionados com sucesso!');
 }
 
 main()

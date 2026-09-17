@@ -25,7 +25,14 @@ export async function POST(request: Request) {
         veterinario: {
           include: {
             enderecos: true,
-            faturas: {
+            assinaturas: {
+              include: {
+                plano: true,
+                faturas: {
+                  take: 1,
+                  orderBy: { createdAt: 'desc' }
+                }
+              },
               take: 1,
               orderBy: { createdAt: 'desc' }
             }
