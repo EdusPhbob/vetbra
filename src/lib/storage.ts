@@ -31,7 +31,7 @@ export interface UploadOptions {
   buffer: Buffer;
   filename: string;
   contentType: string;
-  folder: 'crmv' | 'perfis' | 'geral';
+  folder: 'crmv' | 'perfis' | 'geral' | 'artigos' | 'comprovantes' | string;
   isPrivate?: boolean;
 }
 

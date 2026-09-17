@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${cleanExt}`;
 
     const isPrivate = folderType === 'crmv'; // CRMV e Selfies são estritamente privados
-    const folder = folderType === 'perfis' ? 'perfis' : 'crmv';
+    const folder = ['perfis', 'artigos', 'comprovantes', 'geral'].includes(folderType) ? folderType : (folderType === 'crmv' ? 'crmv' : 'geral');
 
     const result = await uploadFile({
       buffer,

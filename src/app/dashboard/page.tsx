@@ -31,7 +31,8 @@ import {
   Headphones,
   Send,
   Inbox,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react';
 import { formatCrmv } from '@/lib/crmv';
 import { parseUserAgent, formatOrigem } from '@/lib/deviceDetector';
@@ -79,6 +80,11 @@ export default function DashboardPage() {
   const [artigoFoto, setArtigoFoto] = useState('');
   const [artigoResumo, setArtigoResumo] = useState('');
   const [artigoConteudo, setArtigoConteudo] = useState('');
+  const [uploadingArtigoFoto, setUploadingArtigoFoto] = useState(false);
+  const [artigoFotoError, setArtigoFotoError] = useState<string | null>(null);
+  const [artigoSuccessMsg, setArtigoSuccessMsg] = useState<string | null>(null);
+  const [artigoErrorMsg, setArtigoErrorMsg] = useState<string | null>(null);
+  const [uploadingPerfilFoto, setUploadingPerfilFoto] = useState(false);
 
   // Chamados / Tickets de Suporte
   const [tickets, setTickets] = useState<any[]>([]);
@@ -416,10 +422,104 @@ export default function DashboardPage() {
     }
   };
 
+  // Upload da Foto de Capa do Artigo
+  const handleArtigoFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setArtigoFotoError('Formato inválido. Selecione uma imagem (JPG, PNG ou WebP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setArtigoFotoError('Arquivo muito grande. O tamanho máximo permitido é 10MB.');
+      return;
+    }
+
+    setUploadingArtigoFoto(true);
+    setArtigoFotoError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'artigos');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setArtigoFoto(data.url);
+      } else {
+        setArtigoFotoError(data.error || 'Erro ao enviar imagem.');
+      }
+    } catch (err) {
+      console.error(err);
+      setArtigoFotoError('Erro de conexão ao enviar imagem.');
+    } finally {
+      setUploadingArtigoFoto(false);
+    }
+  };
+
+  // Upload da Foto de Perfil na Edição
+  const handlePerfilFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setEditErrorMsg('Formato inválido. Selecione uma imagem (JPG, PNG ou WebP).');
+      return;
+    }
+
+    setUploadingPerfilFoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'perfis');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setEditForm(prev => ({ ...prev, fotoPerfilUrl: data.url }));
+      } else {
+        setEditErrorMsg(data.error || 'Erro ao enviar foto de perfil.');
+      }
+    } catch (err) {
+      console.error(err);
+      setEditErrorMsg('Erro de conexão no upload da foto.');
+    } finally {
+      setUploadingPerfilFoto(false);
+    }
+  };
+
   // Artigos
   const handleAddArtigo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!artigoTitulo || !artigoResumo || !artigoConteudo || !vet) return;
+    setArtigoErrorMsg(null);
+    setArtigoSuccessMsg(null);
+
+    if (!artigoTitulo.trim()) {
+      setArtigoErrorMsg('Por favor, informe o título do artigo.');
+      return;
+    }
+    if (!artigoResumo.trim()) {
+      setArtigoErrorMsg('Por favor, informe o resumo do artigo.');
+      return;
+    }
+    if (!artigoConteudo.trim()) {
+      setArtigoErrorMsg('Por favor, informe o conteúdo completo do artigo.');
+      return;
+    }
+    if (!vet) {
+      setArtigoErrorMsg('Sessão inválida. Recarregue a página.');
+      return;
+    }
 
     setSavingArtigo(true);
     try {
@@ -428,24 +528,30 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           veterinarioId: vet.id,
-          titulo: artigoTitulo,
+          titulo: artigoTitulo.trim(),
           categoria: artigoCategoria,
-          fotoUrl: artigoFoto,
-          resumo: artigoResumo,
-          conteudo: artigoConteudo
+          fotoUrl: artigoFoto || null,
+          resumo: artigoResumo.trim(),
+          conteudo: artigoConteudo.trim()
         })
       });
 
-      if (res.ok) {
-        const item = await res.json();
-        setArtigos([item, ...artigos]);
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setArtigos(prev => [data, ...prev]);
         setArtigoTitulo('');
         setArtigoFoto('');
         setArtigoResumo('');
         setArtigoConteudo('');
+        setArtigoFotoError(null);
+        setArtigoSuccessMsg(`Artigo "${data.titulo}" publicado com sucesso no portal!`);
+        setTimeout(() => setArtigoSuccessMsg(null), 5000);
+      } else {
+        setArtigoErrorMsg(data.error || 'Erro ao publicar artigo.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setArtigoErrorMsg('Erro de conexão ao publicar artigo.');
     } finally {
       setSavingArtigo(false);
     }
@@ -943,6 +1049,20 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Feedback de publicação do artigo */}
+          {artigoSuccessMsg && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {artigoSuccessMsg}
+            </div>
+          )}
+          {artigoErrorMsg && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              {artigoErrorMsg}
+            </div>
+          )}
+
           {/* Form para novo artigo */}
           <form onSubmit={handleAddArtigo} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -977,17 +1097,96 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                <ImageIcon className="w-3 h-3 text-slate-400" /> Foto de Capa (Link / URL da Imagem)
+            {/* Upload de Foto de Capa (Sem links manuais) */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-slate-400" /> Foto de Capa do Artigo
               </label>
-              <input
-                type="url"
-                value={artigoFoto}
-                onChange={(e) => setArtigoFoto(e.target.value)}
-                placeholder="https://exemplo.com/foto-do-artigo.jpg"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
-              />
+
+              {artigoFoto ? (
+                <div className="relative rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-4 shadow-2xs">
+                  <div className="w-24 h-20 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                    <img
+                      src={artigoFoto}
+                      alt="Capa do artigo"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Foto anexada com sucesso
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">{artigoFoto}</p>
+                    <div className="flex items-center gap-3 pt-1">
+                      <label
+                        htmlFor="upload-artigo-foto"
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer hover:underline flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" /> Trocar Foto
+                      </label>
+                      <span className="text-slate-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setArtigoFoto('')}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Remover Foto
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    id="upload-artigo-foto"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handleArtigoFotoUpload}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <input
+                    id="upload-artigo-foto"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handleArtigoFotoUpload}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="upload-artigo-foto"
+                    className={`border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-all bg-white hover:bg-emerald-50/40 group ${
+                      uploadingArtigoFoto ? 'opacity-60 pointer-events-none' : ''
+                    }`}
+                  >
+                    {uploadingArtigoFoto ? (
+                      <div className="flex items-center gap-2 text-emerald-700 py-3">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="text-xs font-bold">Fazendo upload da imagem...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">
+                            Clique aqui para enviar a foto do seu computador ou celular
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Formatos aceitos: JPG, PNG ou WebP (Máx. 10MB)
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </label>
+                </div>
+              )}
+
+              {artigoFotoError && (
+                <div className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 pt-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {artigoFotoError}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -1187,6 +1386,47 @@ export default function DashboardPage() {
                     disabled
                     className="w-full px-3 py-2 bg-slate-200/70 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-600 cursor-not-allowed"
                   />
+                </div>
+              </div>
+
+              {/* FOTO DE PERFIL / LOGOTIPO */}
+              <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-200 border border-slate-300 shrink-0 flex items-center justify-center">
+                  {editForm.fotoPerfilUrl ? (
+                    <img src={editForm.fotoPerfilUrl} alt="Foto de perfil" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Foto do Perfil / Logotipo</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="upload-perfil-modal"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
+                      onChange={handlePerfilFotoUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="upload-perfil-modal"
+                      className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-xs font-bold text-slate-700 hover:text-emerald-700 cursor-pointer shadow-2xs flex items-center gap-1.5 transition-colors"
+                    >
+                      {uploadingPerfilFoto ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <Upload className="w-3.5 h-3.5" />}
+                      {uploadingPerfilFoto ? 'Enviando...' : (editForm.fotoPerfilUrl ? 'Alterar Foto' : 'Enviar Foto')}
+                    </label>
+                    {editForm.fotoPerfilUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, fotoPerfilUrl: '' })}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 text-xs font-semibold cursor-pointer"
+                        title="Remover foto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block">JPG, PNG ou WebP (Máx. 10MB)</span>
                 </div>
               </div>
 
