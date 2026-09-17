@@ -6,7 +6,7 @@ import Footer from '@/components/Footer';
 import VetCard from '@/components/VetCard';
 import HeroSearch from '@/components/HeroSearch';
 import VetMapExplorer from '@/components/VetMapExplorer';
-import HeroCenteredLogo from '@/components/HeroCenteredLogo';
+import HeroIntroCover from '@/components/HeroIntroCover';
 import { 
   ShieldCheck, 
   Search, 
@@ -96,45 +96,46 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Header />
 
-      {/* HERO SECTION PRINCIPAL (100% DA ALTURA DA TELA - SEM CORTAR CARDS OU EXIBIR MAPA) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] flex flex-col justify-between py-4 sm:py-6 border-b border-slate-200">
+      {/* 1ª TELA: IMAGEM WIDESCREEN 100% LIMPA COM APENAS O BOTÃO 'ROLE PARA BAIXO' */}
+      <HeroIntroCover />
+
+      {/* 2ª TELA: TELA COMPLETA DE BUSCA (PILL, TÍTULO, SUBTÍTULO, BUSCA E 4 CARDS - SEM IMAGEM ATRÁS) */}
+      <section id="busca-hero" className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] flex flex-col justify-between py-6 sm:py-8 border-b border-slate-200">
         
         {/* BACKGROUND GRID SUAVE */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
-          {/* CONTEÚDO CENTRALIZADO COM WIDESCREEN BANNER E TRANSIÇÃO DE TEXTO */}
+          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
           <div className="text-center max-w-4xl mx-auto space-y-3 my-auto w-full">
             
-            <HeroCenteredLogo>
-              {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
-              <div className="flex justify-center">
-                <Link
-                  href="/cadastro"
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs shadow-md transition-all hover:scale-[1.02] group relative overflow-hidden"
-                >
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#147A44]"></span>
-                  </span>
-                  <Stethoscope className="w-3.5 h-3.5 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
-                  <span>É Médico Veterinário ou Clínica? Cadastre-se aqui</span>
-                  <ChevronRight className="w-3 h-3 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
-                </Link>
-              </div>
+            {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
+            <div className="flex justify-center">
+              <Link
+                href="/cadastro"
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs shadow-xs hover:shadow-md transition-all hover:scale-[1.02] group relative overflow-hidden"
+              >
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#147A44]"></span>
+                </span>
+                <Stethoscope className="w-3.5 h-3.5 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
+                <span>É Médico Veterinário ou Clínica? Cadastre-se aqui</span>
+                <ChevronRight className="w-3 h-3 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
+              </Link>
+            </div>
 
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15] mt-3">
-                Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
-              </h1>
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15] mt-1">
+              Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
+            </h1>
 
-              <p className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto mt-2">
-                A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
-              </p>
-            </HeroCenteredLogo>
+            <p className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
+              A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
+            </p>
 
             {/* BARRA DE BUSCA PRINCIPAL COM SELETOR DE PET, ESPECIALIDADE E CEP */}
-            <div className="relative z-20">
+            <div className="pt-2">
               <HeroSearch />
             </div>
 
