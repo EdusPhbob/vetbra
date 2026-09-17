@@ -1,0 +1,150 @@
+================================================================================
+          VETBRA SAAS — GUIA DEFINITIVO DE CHAVES, CONFIGURAÇÕES E PRODUÇÃO
+================================================================================
+Data de Atualização: Setembro de 2026
+Repositório: EdusPhbob/vetbra (branch: main)
+Framework: Next.js 16 (Turbopack) | Banco: PostgreSQL + Prisma
+
+Este documento contém todas as variáveis de ambiente necessárias para rodar o
+VetBra em produção na Vercel ou no seu servidor TrueNAS/Docker, explicando cada
+chave, onde obter e como configurar a infraestrutura de forma segura.
+
+--------------------------------------------------------------------------------
+1. MODELO COMPLETO DE VARIÁVEIS DE AMBIENTE (.env / Vercel Environment Variables)
+--------------------------------------------------------------------------------
+
+# --- BANCO DE DADOS POSTGRESQL ---
+DATABASE_URL="postgresql://vetbra_user:SUA_SENHA_AQUI@IP_OU_DOMINIO:5433/vetbra_db?schema=public"
+
+# --- URL BASE DA APLICAÇÃO ---
+NEXT_PUBLIC_APP_URL="https://vetbra.com.br"
+
+# --- SEGURANÇA & SESSÃO (JWT COOKIE HTTP-ONLY) ---
+# Dica: gere uma chave segura executando no terminal: openssl rand -base64 32
+JWT_SECRET="vetbra_super_secret_jwt_key_producao_2026_x87y21z99q"
+
+# --- CHAVE SECRETA DE PROTEÇÃO DAS CRON JOBS ---
+# Usada pela Vercel para autorizar a execução das rotas /api/cron/*
+CRON_SECRET="vetbra_cron_secret_auth_token_984124"
+
+# --- GATEWAY DE PAGAMENTOS (ASAAS - PIX E BOLETO) ---
+# Obtenha em: https://www.asaas.com (ou https://sandbox.asaas.com para testes)
+# Configurações -> Integrações -> Gerar Chave de API
+ASAAS_API_KEY="$aact_YTU5YTE0M2M6N2ZmNGJiNzct..."
+ASAAS_ENVIRONMENT="production" # Use "sandbox" durante homologação
+
+# --- E-MAILS TRANSACIONAIS (RESEND) ---
+# Obtenha em: https://resend.com/api-keys
+RESEND_API_KEY="re_1234567890abcdef..."
+EMAIL_FROM="VetBra <contato@vetbra.com.br>"
+
+# --- STORAGE SEGURO (TRUENAS MINIO / CLOUDFLARE R2 / AWS S3) ---
+# Se deixar vazio, o sistema salva automaticamente em public/uploads/ (modo local)
+S3_ENDPOINT="https://s3.seutruenas.seudominio.com" # Ou endpoint Cloudflare R2
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="SUA_ACCESS_KEY_MINIO"
+S3_SECRET_ACCESS_KEY="SUA_SECRET_KEY_MINIO"
+S3_BUCKET_NAME="vetbra-storage"
+# S3_PUBLIC_BASE_URL="https://cdn.vetbra.com.br" # Opcional se usar CDN própria
+
+--------------------------------------------------------------------------------
+2. COMO CONFIGURAR O TRUENAS & MINIO PARA ARMAZENAMENTO DE DOCUMENTOS
+--------------------------------------------------------------------------------
+
+Você possui um servidor TrueNAS. O TrueNAS é a melhor opção para guardar fotos
+de CRMV e selfies confidenciais com custo R$ 0 e privacidade total:
+
+Passo 1 (Habilitar o MinIO no TrueNAS):
+- No painel do TrueNAS SCALE: Vá em "Apps" -> Busque por "MinIO" -> Instalar.
+- Defina o nome de usuário (Access Key) e senha forte (Secret Key).
+- Crie o dataset dedicado no ZFS para os arquivos (ex: /mnt/pool/vetbra-storage).
+
+Passo 2 (Criar o Bucket no MinIO Console):
+- Acesse a interface web do MinIO (porta 9001 do TrueNAS).
+- Crie um Bucket chamado: "vetbra-storage".
+- Mantenha a política padrão do bucket como PRIVADA (Private).
+- Nossos arquivos de CRMV são servidos via URLs Pré-Assinadas (Presigned URLs)
+  temporárias geradas pela rota /api/documentos/privado.
+
+Passo 3 (Conectar a Vercel ao TrueNAS via Cloudflare Tunnel - Grátis e Seguro):
+- Como a Vercel está na nuvem pública e o TrueNAS na sua rede local (192.168.x.x),
+  não abra portas no seu roteador diretamente.
+- Instale o Cloudflare Tunnel (cloudflared) no TrueNAS ou em uma máquina local.
+- Aponte o túnel para a porta do MinIO API (porta 9000 do TrueNAS).
+- No painel da Cloudflare, crie o hostname: s3.seudominio.com.
+- Configure na Vercel: S3_ENDPOINT="https://s3.seudominio.com".
+
+--------------------------------------------------------------------------------
+3. COMO CONFIGURAR O GATEWAY ASAAS (PIX & BOLETO COM WEBHOOK)
+--------------------------------------------------------------------------------
+
+Passo 1 (Chave de API):
+- No painel do Asaas: Vá em "Menu Lateral" -> "Configurações da Conta" -> "Integrações".
+- Clique em "Gerar Chave de API" e cole o token na variável ASAAS_API_KEY.
+
+Passo 2 (Configurar o Webhook no Asaas):
+- Ainda em "Integrações" -> Vá na aba "Webhooks" -> "Criar Webhook".
+- Nome: Webhook VetBra Produção
+- URL de Envio: https://vetbra.com.br/api/webhooks/pagamentos
+- Versão da API: v3
+- Eventos Selecionados:
+  [x] Pagamento Recebido (PAYMENT_RECEIVED)
+  [x] Pagamento Confirmado (PAYMENT_CONFIRMED)
+  [x] Pagamento Vencido (PAYMENT_OVERDUE)
+  [x] Pagamento Estornado (PAYMENT_REFUNDED)
+- Fila de Sincronização: Ativa (caso sua aplicação oscile, o Asaas tenta reenviar).
+
+Passo 3 (Conciliação Diária Automática):
+- O VetBra já possui uma rota de contingência: /api/cron/conciliacao-pagamentos.
+- A cada 24 horas (via vercel.json), o sistema varre o Asaas e baixa qualquer
+  pagamento pendente, garantindo que nenhum veterinário fique sem ativação.
+
+--------------------------------------------------------------------------------
+4. COMO CONFIGURAR O RESEND (E-MAILS TRANSACIONAIS)
+--------------------------------------------------------------------------------
+
+Passo 1:
+- Acesse https://resend.com e crie uma conta gratuita (permite 3.000 e-mails/mês).
+- Vá em "API Keys" -> "Create API Key" -> Copie a chave (re_...).
+
+Passo 2 (Verificação do Domínio):
+- No Resend, vá em "Domains" -> "Add Domain" -> digite: vetbra.com.br.
+- Adicione as 3 entradas DNS (TXT e MX) na sua hospedagem de DNS (ex: Cloudflare ou Registro.br).
+- Assim que o domínio estiver verificado ("Verified"), você poderá enviar de:
+  contato@vetbra.com.br ou nao-responda@vetbra.com.br.
+
+--------------------------------------------------------------------------------
+5. ROTAS DE CRON JOBS AUTOMATIZADAS (CONFIGURADAS NO vercel.json)
+--------------------------------------------------------------------------------
+
+O arquivo vercel.json na raiz do projeto já agenda automaticamente:
+
+1) /api/cron/conciliacao-pagamentos (Executa todo dia às 00:00 BRT / 03:00 UTC)
+   - Baixa pagamentos confirmados do Asaas.
+   - Aplica 5 dias de tolerância antes de suspender veterinários inadimplentes.
+   - Registra tudo na Trilha de Auditoria Global (AuditoriaLog).
+
+2) /api/cron/crmv-renovacao (Executa todo dia às 06:00 BRT / 09:00 UTC)
+   - Localiza veterinários cujo CRMV vence nos próximos 30 dias.
+   - Dispara e-mail de alerta preventivo com botão de acesso ao painel.
+   - Atualiza a flag crmvAlerta30diasEnviado para não disparar duplicado.
+
+--------------------------------------------------------------------------------
+6. SEGURANÇA E AUDITORIA EMBUTIDAS
+--------------------------------------------------------------------------------
+
+1. Proteção Anti-Fraude no Backend:
+   - Os campos nomeCompleto, crmvNumero, crmvUf e cpfCnpj NÃO podem ser editados
+     pelo veterinário no painel /dashboard. Tentativas via script recebem HTTP 403.
+
+2. Proteção de Rotas com Proxy (src/proxy.ts):
+   - /admin e /api/admin exigem role ADMIN com verificação criptográfica de JWT.
+   - /dashboard exige login ativo e redireciona automaticamente caso deslogado.
+
+3. Logs Globais (AuditoriaLog):
+   - Toda alteração de CRMV, emissão de faturas, liquidação de assinaturas e
+     execuções de cron jobs são auditadas com autor, IP, data e snapshots JSON.
+
+================================================================================
+                 PROJETO PRONTO PARA DEPLOY EM PRODUÇÃO!
+================================================================================
