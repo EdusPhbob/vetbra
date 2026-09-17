@@ -56,7 +56,43 @@ export async function GET(request: Request) {
       }
     }
 
-    const assinaturaAtiva = vet.assinaturas?.[0];
+    let assinaturaAtiva = vet.assinaturas?.[0];
+
+    // Checagem do Período de Teste Gratuito (Trial de até 7 dias)
+    let trialExpirado = false;
+    let diasRestantesTrial: number | null = null;
+
+    if (assinaturaAtiva?.status === 'TRIAL' && assinaturaAtiva.dataFimPeriodo) {
+      const agora = new Date();
+      const fim = new Date(assinaturaAtiva.dataFimPeriodo);
+      const diffMs = fim.getTime() - agora.getTime();
+      diasRestantesTrial = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+      if (diffMs <= 0) {
+        // Período de teste expirado! Se a fatura não foi paga, bloqueia o perfil
+        const faturaRecente = assinaturaAtiva.faturas?.[0];
+        if (faturaRecente?.status !== 'PAGA') {
+          trialExpirado = true;
+          await prisma.assinatura.update({
+            where: { id: assinaturaAtiva.id },
+            data: { status: 'EXPIRADA' }
+          });
+          await prisma.veterinario.update({
+            where: { id: vet.id },
+            data: { statusGeral: 'BLOQUEADO', destaqueBusca: false }
+          });
+          if (vet.userId) {
+            await prisma.user.update({
+              where: { id: vet.userId },
+              data: { ativo: false }
+            });
+          }
+          assinaturaAtiva.status = 'EXPIRADA';
+          vet.statusGeral = 'BLOQUEADO';
+        }
+      }
+    }
+
     const planoNome = assinaturaAtiva?.plano?.nome?.replace('Plano ', '') || 'Profissional';
 
     return NextResponse.json({
@@ -66,6 +102,8 @@ export async function GET(request: Request) {
       assinaturaAtiva,
       diasParaVencerCrmv,
       alerta30DiasAtivo,
+      diasRestantesTrial,
+      trialExpirado,
       especialidades: vet.especialidades.map(ve => ve.especialidade)
     });
   } catch (error: any) {

@@ -513,6 +513,43 @@ export default function DashboardPage() {
       {/* CONTEÚDO PRINCIPAL DO DASHBOARD */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
 
+        {/* BANNER DE TESTE GRATUITO (TRIAL DE 7 DIAS) */}
+        {vet.assinaturaAtiva?.status === 'TRIAL' && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-indigo-50 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3">
+              <Clock className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wide text-indigo-950 flex items-center gap-2">
+                  <span>Período de Teste Gratuito Ativo (Trial de 7 Dias)</span>
+                  <span className="px-2 py-0.5 bg-indigo-200 text-indigo-900 rounded-full text-[10px] font-bold">
+                    Restam {vet.diasRestantesTrial ?? 7} dias
+                  </span>
+                </h3>
+                <p className="text-xs text-indigo-800 mt-0.5 leading-relaxed">
+                  Você está usufruindo do período de cortesia liberado pela administração. Para garantir a continuidade da sua presença no mapa e nos resultados de busca sem bloqueios, efetue o pagamento do seu plano.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ALERTA DE TRIAL EXPIRADO / PAGAMENTO BLOQUEADO */}
+        {vet.statusGeral === 'BLOQUEADO' && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-pulse">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wide text-rose-950">
+                  Acesso Bloqueado: Período de Teste Expirado
+                </h3>
+                <p className="text-xs text-rose-800 mt-0.5 leading-relaxed">
+                  Seu período de teste gratuito de 7 dias expirou e o pagamento da sua assinatura ainda não foi confirmado. Realize o pagamento via Pix para reativar seu perfil imediatamente.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ALERTA DE RENOVAÇÃO DO CRMV (POPUP / BANNER 30 DIAS ANTES) */}
         {vet.alerta30DiasAtivo && (
           <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 border-2 border-amber-300 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-pulse">

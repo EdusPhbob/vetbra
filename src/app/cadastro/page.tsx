@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -84,7 +84,9 @@ function CadastroContent() {
   const [cepConsultando, setCepConsultando] = useState(false);
   const [cep2Consultando, setCep2Consultando] = useState(false);
 
-  // Formulário Completo
+  // Cidades dinâmicas do IBGE pelo Estado Base
+  const [cidadesBase, setCidadesBase] = useState<string[]>([]);
+  const [carregandoCidades, setCarregandoCidades] = useState(false);
   const [form, setForm] = useState({
     // Etapa 1: Dados Pessoais & Acesso
     nomeCompleto: '',
@@ -156,6 +158,39 @@ function CadastroContent() {
       setForm(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  // Carrega municípios oficiais do estado base via API oficial do IBGE
+  useEffect(() => {
+    let ativo = true;
+    const carregarCidadesIbge = async () => {
+      setCarregandoCidades(true);
+      try {
+        const uf = form.estadoBase || 'SP';
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+        if (res.ok) {
+          const dados = await res.json();
+          const nomes: string[] = dados
+            .map((item: any) => item.nome)
+            .sort((a: string, b: string) => a.localeCompare(b, 'pt-BR'));
+
+          if (ativo) {
+            setCidadesBase(nomes);
+            if (nomes.length > 0 && (!form.cidadeBase || !nomes.includes(form.cidadeBase))) {
+              // Se a cidade atual não pertence ao estado escolhido, define a primeira
+              setForm(prev => ({ ...prev, cidadeBase: nomes[0] }));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao consultar municípios do IBGE:', err);
+      } finally {
+        if (ativo) setCarregandoCidades(false);
+      }
+    };
+
+    carregarCidadesIbge();
+    return () => { ativo = false; };
+  }, [form.estadoBase]);
 
   // Manipulação dos tipos de estabelecimento (múltipla escolha / checkbox)
   const handleTipoEstabelecimentoToggle = (tipo: string) => {
@@ -300,6 +335,11 @@ function CadastroContent() {
     } else if (etapa === 2) {
       if (!form.crmvNumero || !form.crmvUf) {
         setErroMsg('Número e Estado do CRMV são obrigatórios.');
+        return;
+      }
+      const crmvApenasNumeros = form.crmvNumero.replace(/\D/g, '');
+      if (crmvApenasNumeros.length < 3 || crmvApenasNumeros.length > 7) {
+        setErroMsg('O CRMV deve conter apenas números válidos (entre 3 e 7 dígitos). Letras e caracteres especiais não são permitidos.');
         return;
       }
       if (!form.crmvValidade) {
@@ -679,13 +719,22 @@ function CadastroContent() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="sm:col-span-2 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Número de Registro CRMV *</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">Número de Registro CRMV *</label>
+                        <span className="text-[10px] text-slate-400 font-normal">Apenas números (3 a 7 dígitos)</span>
+                      </div>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={7}
                         name="crmvNumero"
                         value={form.crmvNumero}
-                        onChange={handleChange}
-                        placeholder="Ex: 14839"
+                        onChange={(e) => {
+                          const num = e.target.value.replace(/\D/g, '').slice(0, 7);
+                          setForm(prev => ({ ...prev, crmvNumero: num }));
+                        }}
+                        placeholder="Ex: 14839 (somente números)"
                         required
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500 font-mono"
                       />
@@ -931,8 +980,7 @@ function CadastroContent() {
                           const uf = e.target.value;
                           setForm(prev => ({
                             ...prev,
-                            estadoBase: uf,
-                            cidadeBase: CIDADES_POR_UF[uf]?.[0] || 'Capital'
+                            estadoBase: uf
                           }));
                         }}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
@@ -944,16 +992,30 @@ function CadastroContent() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Cidade Base Selecionada *</label>
-                      <input
-                        type="text"
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">Cidade Base Selecionada *</label>
+                        {carregandoCidades && (
+                          <span className="text-[10px] text-emerald-700 font-medium flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin text-emerald-600" /> IBGE...
+                          </span>
+                        )}
+                      </div>
+                      <select
                         name="cidadeBase"
                         value={form.cidadeBase}
                         onChange={handleChange}
-                        placeholder="Ex: São Paulo"
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
-                      />
+                        disabled={carregandoCidades}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500 cursor-pointer disabled:opacity-50"
+                      >
+                        {cidadesBase.length === 0 ? (
+                          <option value={form.cidadeBase || 'São Paulo'}>{form.cidadeBase || 'Carregando municípios...'}</option>
+                        ) : (
+                          cidadesBase.map(cidade => (
+                            <option key={cidade} value={cidade}>{cidade}</option>
+                          ))
+                        )}
+                      </select>
                     </div>
 
                     <div className="space-y-1">

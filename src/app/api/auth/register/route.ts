@@ -63,6 +63,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Preencha todos os campos obrigatórios do profissional e CRMV.' }, { status: 400 });
     }
 
+    const crmvLimpo = String(crmvNumero).trim().replace(/\D/g, '');
+    if (!crmvLimpo || crmvLimpo.length < 3 || crmvLimpo.length > 7) {
+      return NextResponse.json({
+        error: 'O número de registro CRMV deve ser estritamente numérico (entre 3 e 7 dígitos). Não são permitidas letras ou símbolos.'
+      }, { status: 400 });
+    }
+
     if (!numero) {
       return NextResponse.json({ error: 'O número do endereço principal é obrigatório.' }, { status: 400 });
     }
@@ -89,18 +96,18 @@ export async function POST(request: Request) {
     const userLogin = (login || email).trim().toLowerCase();
     const existeLogin = await prisma.user.findUnique({ where: { login: userLogin } });
     if (existeLogin) {
-      return NextResponse.json({ error: 'Este login de usuário já está em uso. Escolha outro.' }, { status: 400 });
+      return NextResponse.json({ error: 'Este nome de usuário (login) já está em uso.' }, { status: 400 });
     }
 
     // Checa duplicidade de CRMV no mesmo estado
     const existeCrmv = await prisma.veterinario.findFirst({
       where: {
-        crmvNumero: crmvNumero.trim(),
+        crmvNumero: crmvLimpo,
         crmvUf: crmvUf.toUpperCase()
       }
     });
     if (existeCrmv) {
-      return NextResponse.json({ error: `O CRMV ${crmvNumero}/${crmvUf} já está cadastrado na base de dados.` }, { status: 400 });
+      return NextResponse.json({ error: `O CRMV ${crmvLimpo}/${crmvUf} já está cadastrado na base de dados.` }, { status: 400 });
     }
 
     // Localiza o plano selecionado no banco
@@ -250,7 +257,7 @@ export async function POST(request: Request) {
         fotoPerfilUrl: fotoPerfilUrl || null,
         // Anti-fraude & CRMV
         statusGeral: VetStatusGeral.AGUARDANDO_APROVACAO,
-        crmvNumero: crmvNumero.trim(),
+        crmvNumero: crmvLimpo,
         crmvUf: crmvUf.toUpperCase(),
         crmvValidade: dataValidadeCrmv,
         crmvStatus: CrmvStatus.PENDENTE,

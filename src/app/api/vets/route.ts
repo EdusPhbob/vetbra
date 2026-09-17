@@ -87,8 +87,14 @@ export async function GET(request: Request) {
           include: { especialidade: true }
         },
         assinaturas: {
-          include: { plano: true },
-          where: { status: 'ATIVA' }
+          include: {
+            plano: true,
+            faturas: {
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          },
+          orderBy: { createdAt: 'desc' }
         },
         documentosCrmv: true,
         procedimentos: {

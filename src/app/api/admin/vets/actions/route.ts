@@ -173,6 +173,144 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Veterinário e credenciais excluídos definitivamente.' });
       }
 
+      case 'LIBERAR_TRIAL': {
+        const dias = parseInt(String(body.dias)) || 7;
+        const dataFim = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+
+        // Busca ou cria assinatura
+        let assinatura = await prisma.assinatura.findFirst({
+          where: { veterinarioId },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (assinatura) {
+          await prisma.assinatura.update({
+            where: { id: assinatura.id },
+            data: {
+              status: 'TRIAL',
+              dataInicio: new Date(),
+              dataFimPeriodo: dataFim
+            }
+          });
+        } else {
+          let planoDb = await prisma.plano.findFirst();
+          if (!planoDb) {
+            planoDb = await prisma.plano.create({
+              data: {
+                slug: 'profissional',
+                nome: 'Plano Profissional',
+                precoMensal: 149.90,
+                ativo: true
+              }
+            });
+          }
+          await prisma.assinatura.create({
+            data: {
+              veterinarioId,
+              planoId: planoDb.id,
+              status: 'TRIAL',
+              dataInicio: new Date(),
+              dataFimPeriodo: dataFim,
+              valorAtual: planoDb.precoMensal
+            }
+          });
+        }
+
+        // Ativa o veterinário e usuário durante o período de teste
+        const updated = await prisma.veterinario.update({
+          where: { id: veterinarioId },
+          data: {
+            statusGeral: 'ATIVO',
+            destaqueBusca: true
+          }
+        });
+
+        if (vet.userId) {
+          await prisma.user.update({
+            where: { id: vet.userId },
+            data: { ativo: true }
+          });
+        }
+
+        await registrarAuditoria({
+          entidade: 'ASSINATURA',
+          registroId: veterinarioId,
+          acao: 'EDICAO',
+          autorId: session.userId,
+          autorEmail: adminEmail,
+          autorRole: 'ADMIN',
+          dadosNovos: { status: 'TRIAL', diasTrial: dias, dataFimPeriodo: dataFim },
+          justificativa: motivo || `Concessão de período de teste gratuito de ${dias} dias pelo administrador`,
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Período de teste de ${dias} dias liberado com sucesso!`,
+          vet: updated
+        });
+      }
+
+      case 'CONFIRMAR_PAGAMENTO': {
+        const assinatura = await prisma.assinatura.findFirst({
+          where: { veterinarioId },
+          include: { faturas: { orderBy: { createdAt: 'desc' }, take: 1 } },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        const dataFim = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        if (assinatura) {
+          await prisma.assinatura.update({
+            where: { id: assinatura.id },
+            data: {
+              status: 'ATIVA',
+              dataFimPeriodo: dataFim
+            }
+          });
+
+          if (assinatura.faturas[0]) {
+            await prisma.faturaCobranca.update({
+              where: { id: assinatura.faturas[0].id },
+              data: {
+                status: 'PAGA',
+                dataLiquidacao: new Date()
+              }
+            });
+          }
+        }
+
+        const updated = await prisma.veterinario.update({
+          where: { id: veterinarioId },
+          data: {
+            statusGeral: 'ATIVO',
+            destaqueBusca: true
+          }
+        });
+
+        if (vet.userId) {
+          await prisma.user.update({
+            where: { id: vet.userId },
+            data: { ativo: true }
+          });
+        }
+
+        await registrarAuditoria({
+          entidade: 'FATURA',
+          registroId: veterinarioId,
+          acao: 'APROVACAO',
+          autorId: session.userId,
+          autorEmail: adminEmail,
+          autorRole: 'ADMIN',
+          justificativa: motivo || 'Pagamento Pix confirmado manualmente pelo administrador',
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: 'Pagamento confirmado e plano mensal ativado com sucesso!',
+          vet: updated
+        });
+      }
+
       default:
         return NextResponse.json({ error: `Ação inválida: ${acao}` }, { status: 400 });
     }
