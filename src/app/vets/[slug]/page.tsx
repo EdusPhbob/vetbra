@@ -19,6 +19,7 @@ import {
 import { formatCrmv, checkCrmvValidity } from '@/lib/crmv';
 import WhatsAppContactButton from '@/components/WhatsAppContactButton';
 import AvaliacaoFormModal from '@/components/AvaliacaoFormModal';
+import CrmvBadge from '@/components/CrmvBadge';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -144,10 +145,11 @@ export default async function VetProfilePage({ params }: Props) {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <h1 className="text-2xl sm:text-3xl font-black text-slate-900">{vet.nomeCompleto}</h1>
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[#147A44] text-xs font-bold">
-                      <ShieldCheck className="w-4 h-4 text-[#147A44]" />
-                      CRMV {formatCrmv(vet.crmvNumero, vet.crmvUf)} Verificado
-                    </div>
+                    <CrmvBadge
+                      veterinarioId={vet.id}
+                      crmvNumero={vet.crmvNumero}
+                      crmvUf={vet.crmvUf}
+                    />
                   </div>
 
                   {vet.nomeSocialOuClinica && (

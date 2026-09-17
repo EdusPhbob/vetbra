@@ -124,6 +124,8 @@ model User {
   nome          String
   role          Role         @default(VET)
   ativo         Boolean      @default(true)
+  ultimoLoginEm DateTime?
+  ultimoAcessoEm DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -203,6 +205,7 @@ model Veterinario {
   destaqueBusca                Boolean           @default(false)
   visualizacoesCount           Int               @default(0)
   contatosWhatsappCount        Int               @default(0)
+  cliquesCrmvCount             Int               @default(0)
   atendimentosDeclaradosCount  Int               @default(0)
   atendimentosConfirmadosCount Int               @default(0)
 
@@ -218,6 +221,7 @@ model Veterinario {
   avaliacoes            Avaliacao[]
   assinaturas           Assinatura[]
   cliquesWhatsapp       CliqueWhatsappLog[]
+  tickets               TicketSuporte[]
   atendimentosLeads     AtendimentoLead[]
   artigos               Artigo[]
 
@@ -587,4 +591,28 @@ model AtendimentoLead {
   @@index([veterinarioId])
   @@index([status])
   @@index([createdAt])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 8: TICKETS & CHAMADOS DE SUPORTE
+// -------------------------------------------------------------
+
+model TicketSuporte {
+  id            String          @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  assunto       String
+  categoria     String          @default("DUVIDA") // DUVIDA, CRMV, AVALIACAO, FINANCEIRO, OUTROS
+  mensagem      String          @db.Text
+  respostaAdmin String?         @db.Text
+  status        String          @default("ABERTO") // ABERTO, EM_ANDAMENTO, RESPONDIDO, FECHADO
+  respondidoPor String?
+  respondidoEm  DateTime?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([veterinarioId])
+  @@index([status])
 }

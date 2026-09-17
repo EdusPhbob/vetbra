@@ -72,7 +72,15 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // 3. Verifica a senha criptografada via bcryptjs (10 rounds de salt)
+    // 3. Verifica se a conta está ativa ou foi bloqueada pelo admin
+    if (!user.ativo) {
+      return NextResponse.json({
+        error: 'Sua conta está bloqueada ou suspensa pela administração. Entre em contato com o suporte do VetBra.',
+        isBlockedAccount: true
+      }, { status: 403 });
+    }
+
+    // 4. Verifica a senha criptografada via bcryptjs (10 rounds de salt)
     const senhaCorreta = await bcrypt.compare(senha, user.senhaHash);
     if (!senhaCorreta) {
       const fail = recordFailedAttempt(rateKey);
@@ -90,10 +98,20 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // 4. Sucesso! Limpa o contador de tentativas daquele IP
+    // 5. Sucesso! Limpa o contador de tentativas daquele IP
     clearRateLimit(rateKey);
 
-    // 5. Gera token de sessão seguro com JWT assinado (jose)
+    // 6. Atualiza data do último login e acesso
+    const agora = new Date();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ultimoLoginEm: agora,
+        ultimoAcessoEm: agora,
+      },
+    });
+
+    // 7. Gera token de sessão seguro com JWT assinado (jose)
     const token = await signSessionToken({
       userId: user.id,
       email: user.email,

@@ -27,7 +27,10 @@ import {
   KeyRound,
   ExternalLink,
   Car,
-  Check
+  Check,
+  Headphones,
+  Send,
+  Inbox
 } from 'lucide-react';
 import { formatCrmv } from '@/lib/crmv';
 
@@ -55,6 +58,17 @@ export default function DashboardPage() {
   const [artigoFoto, setArtigoFoto] = useState('');
   const [artigoResumo, setArtigoResumo] = useState('');
   const [artigoConteudo, setArtigoConteudo] = useState('');
+
+  // Chamados / Tickets de Suporte
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [showNovoTicketModal, setShowNovoTicketModal] = useState(false);
+  const [novoTicketAssunto, setNovoTicketAssunto] = useState('');
+  const [novoTicketCategoria, setNovoTicketCategoria] = useState('DUVIDA');
+  const [novoTicketMensagem, setNovoTicketMensagem] = useState('');
+  const [savingTicket, setSavingTicket] = useState(false);
+  const [ticketSuccessMsg, setTicketSuccessMsg] = useState<string | null>(null);
+  const [ticketErrorMsg, setTicketErrorMsg] = useState<string | null>(null);
 
   // Edição de Perfil com Bloqueio Anti-Fraude
   const [editForm, setEditForm] = useState({
@@ -120,8 +134,57 @@ export default function DashboardPage() {
     }
   };
 
+  const loadTickets = async () => {
+    setLoadingTickets(true);
+    try {
+      const res = await fetch('/api/tickets');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setTickets(data);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar tickets:', e);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoTicketAssunto.trim() || !novoTicketMensagem.trim()) return;
+    setSavingTicket(true);
+    setTicketErrorMsg(null);
+    setTicketSuccessMsg(null);
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assunto: novoTicketAssunto.trim(),
+          categoria: novoTicketCategoria,
+          mensagem: novoTicketMensagem.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao abrir chamado');
+      setTicketSuccessMsg('Chamado aberto com sucesso! A moderação responderá em breve.');
+      setNovoTicketAssunto('');
+      setNovoTicketMensagem('');
+      await loadTickets();
+      setTimeout(() => {
+        setShowNovoTicketModal(false);
+        setTicketSuccessMsg(null);
+      }, 2000);
+    } catch (err: any) {
+      setTicketErrorMsg(err.message || 'Erro ao abrir chamado.');
+    } finally {
+      setSavingTicket(false);
+    }
+  };
+
   useEffect(() => {
     loadVetData();
+    loadTickets();
   }, []);
 
   // Salvar Edição com proteção anti-fraude
@@ -770,6 +833,94 @@ export default function DashboardPage() {
           </form>
         </div>
 
+        {/* ======================================================== */}
+        {/* SEÇÃO: CENTRAL DE ATENDIMENTO, SUPORTE & TICKETS CRMV */}
+        {/* ======================================================== */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-emerald-600" />
+                Central de Ajuda, Suporte & Chamados
+              </h2>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                Precisa de suporte com seu registro CRMV, contestação de avaliação de tutor, dúvidas sobre planos ou faturamento? Fale diretamente com a moderação do VetBra.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setTicketErrorMsg(null);
+                setTicketSuccessMsg(null);
+                setShowNovoTicketModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Abrir Novo Chamado
+            </button>
+          </div>
+
+          {loadingTickets ? (
+            <div className="py-8 text-center flex items-center justify-center gap-2 text-slate-400 text-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              Carregando seus chamados...
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 text-center space-y-2">
+              <Inbox className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-xs font-bold text-slate-600">Nenhum chamado aberto no momento</p>
+              <p className="text-[11px] text-slate-400">Quando você tiver dúvidas ou contestações, seus chamados e respostas da equipe aparecerão aqui.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tickets.map((t: any) => {
+                const isRespondido = t.status === 'RESPONDIDO';
+                const isAberto = t.status === 'ABERTO';
+
+                return (
+                  <div key={t.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900 text-sm">{t.assunto}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 uppercase">
+                          {t.categoria}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          isRespondido ? 'bg-emerald-100 text-emerald-800' : isAberto ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {t.status}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(t.createdAt).toLocaleDateString('pt-BR')} às {new Date(t.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 text-slate-700 leading-relaxed whitespace-pre-line">
+                      {t.mensagem}
+                    </div>
+
+                    {t.respostaAdmin && (
+                      <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900">
+                          <span>Resposta da Administração:</span>
+                          <span className="text-[10px] text-emerald-700 font-normal">
+                            {t.respondidoEm ? new Date(t.respondidoEm).toLocaleDateString('pt-BR') : ''}
+                          </span>
+                        </div>
+                        <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-line">
+                          {t.respostaAdmin}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </main>
 
       {/* ======================================================== */}
@@ -1126,6 +1277,99 @@ export default function DashboardPage() {
               </form>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL NOVO TICKET / CHAMADO DE SUPORTE */}
+      {/* ======================================================== */}
+      {showNovoTicketModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-emerald-600" />
+                Novo Chamado para a Moderação
+              </h3>
+              <button
+                onClick={() => setShowNovoTicketModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {ticketErrorMsg && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                {ticketErrorMsg}
+              </div>
+            )}
+
+            {ticketSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" /> {ticketSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Assunto</label>
+                <input
+                  type="text"
+                  value={novoTicketAssunto}
+                  onChange={(e) => setNovoTicketAssunto(e.target.value)}
+                  placeholder="Ex: Regularização de CRMV ou Dúvida sobre Fatura"
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
+                <select
+                  value={novoTicketCategoria}
+                  onChange={(e) => setNovoTicketCategoria(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                >
+                  <option value="CRMV">Regularização ou Dúvida de CRMV</option>
+                  <option value="AVALIACAO">Contestação de Avaliação</option>
+                  <option value="FINANCEIRO">Financeiro / Plano / Fatura</option>
+                  <option value="DUVIDA">Dúvida Geral do Sistema</option>
+                  <option value="OUTROS">Outros Assuntos</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Mensagem Detalhada</label>
+                <textarea
+                  value={novoTicketMensagem}
+                  onChange={(e) => setNovoTicketMensagem(e.target.value)}
+                  rows={4}
+                  placeholder="Descreva o motivo do seu contato com o máximo de detalhes..."
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNovoTicketModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingTicket}
+                  className="px-5 py-2.5 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {savingTicket ? 'Enviando...' : 'Enviar Chamado'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -18,9 +18,11 @@ export async function GET(request: Request) {
 
     const where: any = {};
 
-    // Apenas aprovados no portal público a menos que seja modo moderação
+    // Apenas aprovados e ativos no portal público a menos que seja modo moderação
     if (!includePending) {
       where.crmvStatus = CrmvStatus.VERIFICADO;
+      where.statusGeral = 'ATIVO';
+      where.user = { ativo: true };
     }
 
     if (atende24h) {
@@ -92,7 +94,18 @@ export async function GET(request: Request) {
         procedimentos: {
           where: { ativo: true }
         },
-        avaliacoes: true
+        avaliacoes: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            login: true,
+            ativo: true,
+            role: true,
+            ultimoLoginEm: true,
+            ultimoAcessoEm: true,
+          }
+        }
       },
       orderBy: [
         { destaqueBusca: 'desc' },
