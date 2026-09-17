@@ -280,6 +280,7 @@ export default function AdminCrmvModerationPage() {
     let matchesFilter = true;
     if (statusFilter === 'TODOS') matchesFilter = true;
     else if (statusFilter === 'PENDENTE') matchesFilter = v.crmvStatus === 'PENDENTE';
+    else if (statusFilter === 'RECEM_APROVADOS') matchesFilter = v.crmvStatus === 'VERIFICADO' || !!v.crmvAprovadoEm;
     else if (statusFilter === 'VERIFICADO') matchesFilter = v.crmvStatus === 'VERIFICADO';
     else if (statusFilter === 'NAO_PAGO') matchesFilter = !isPago && !isTrial;
     else if (statusFilter === 'TRIAL') matchesFilter = isTrial;
@@ -295,10 +296,18 @@ export default function AdminCrmvModerationPage() {
       const clinica = (v.nomeSocialOuClinica || '').toLowerCase();
       const crmv = (v.crmvNumero || '').toLowerCase();
       const email = (v.user?.email || '').toLowerCase();
-      return nome.includes(term) || clinica.includes(term) || crmv.includes(term) || email.includes(term);
+      const aprovador = (v.crmvAprovadoPor || '').toLowerCase();
+      return nome.includes(term) || clinica.includes(term) || crmv.includes(term) || email.includes(term) || aprovador.includes(term);
     }
 
     return true;
+  }).sort((a, b) => {
+    if (statusFilter === 'RECEM_APROVADOS' || statusFilter === 'VERIFICADO') {
+      const timeA = a.crmvAprovadoEm ? new Date(a.crmvAprovadoEm).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+      const timeB = b.crmvAprovadoEm ? new Date(b.crmvAprovadoEm).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+      return timeB - timeA;
+    }
+    return 0;
   });
 
   const totalPendentes = vets.filter(v => v.crmvStatus === 'PENDENTE').length;
@@ -446,6 +455,7 @@ export default function AdminCrmvModerationPage() {
                 {[
                   { id: 'TODOS', label: 'Todos' },
                   { id: 'PENDENTE', label: 'CRMV Pendente' },
+                  { id: 'RECEM_APROVADOS', label: '🎖️ Últimos Aprovados' },
                   { id: 'NAO_PAGO', label: '⚠️ Não Pagos (Pix)' },
                   { id: 'TRIAL', label: '🎁 Em Teste (Trial 7D)' },
                   { id: 'VERIFICADO', label: '✅ Verificados' },
@@ -619,6 +629,23 @@ export default function AdminCrmvModerationPage() {
                                 {procedimentosCount} procedimentos cadastrados
                               </span>
                             </div>
+
+                            {/* Auditoria de Quem Aprovou o CRMV e Quando */}
+                            {(vet.crmvAprovadoPor || vet.crmvAprovadoEm || (vet.crmvStatus === 'VERIFICADO' && vet.auditoriasCrmv?.[0])) && (
+                              <div className="pt-1.5 flex flex-wrap items-center gap-2">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-xs font-semibold shadow-2xs">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>
+                                    CRMV aprovado por: <strong className="font-black text-emerald-950">{vet.crmvAprovadoPor || vet.auditoriasCrmv?.[0]?.adminEmail || 'Administrador'}</strong>
+                                    {(vet.crmvAprovadoEm || vet.auditoriasCrmv?.[0]?.createdAt) && (
+                                      <span className="text-emerald-700 ml-1 font-medium">
+                                        em {new Date(vet.crmvAprovadoEm || vet.auditoriasCrmv?.[0]?.createdAt).toLocaleDateString('pt-BR')} às {new Date(vet.crmvAprovadoEm || vet.auditoriasCrmv?.[0]?.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

@@ -97,6 +97,10 @@ export async function GET(request: Request) {
           orderBy: { createdAt: 'desc' }
         },
         documentosCrmv: true,
+        auditoriasCrmv: {
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        },
         procedimentos: {
           where: { ativo: true }
         },

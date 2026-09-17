@@ -181,6 +181,8 @@ model Veterinario {
   crmvAlerta30diasEnviado Boolean         @default(false)
   crmvUltimaVerificacao DateTime?
   crmvNotasAuditoria    String?
+  crmvAprovadoPor       String?           // Nome/Login/Email do admin que aprovou o CRMV
+  crmvAprovadoEm        DateTime?         // Data e hora exata da aprovação do CRMV
 
   // Atendimento & Mobilidade
   tipoEstabelecimento   String            @default("Clínica Veterinária Fixa")
