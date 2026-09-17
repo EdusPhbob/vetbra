@@ -58,8 +58,13 @@ export async function POST(request: Request) {
       }
     });
 
-    // Em produção: envio real via Resend/SendGrid ou WhatsApp Cloud API.
-    // Aqui retornamos o código também para facilitar o teste imediato no desenvolvimento
+    // Dispara envio do e-mail transacional com o código
+    const { sendPasswordResetEmail } = await import('@/lib/email');
+    await sendPasswordResetEmail({
+      to: user.email,
+      nome: user.nome,
+      codigo,
+    });
     return NextResponse.json({
       success: true,
       message: `Código de verificação enviado para o e-mail cadastrado (${user.email}) e WhatsApp.`,

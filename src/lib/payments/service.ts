@@ -122,7 +122,7 @@ export async function liquidarFatura({
     where: { id: faturaId },
     include: {
       assinatura: {
-        include: { plano: true, veterinario: true },
+        include: { plano: true, veterinario: { include: { user: true } } },
       },
     },
   });
@@ -138,7 +138,7 @@ export async function liquidarFatura({
   const finalValue = valorPago ?? Number(fatura.valor);
   const diasPlano = fatura.assinatura.ciclo === 'ANUAL' ? 365 : 30;
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // 1. Atualiza Fatura para PAGA
     const faturaAtualizada = await tx.faturaCobranca.update({
       where: { id: fatura.id },
@@ -214,6 +214,24 @@ export async function liquidarFatura({
       },
     });
 
-    return { success: true, fatura: faturaAtualizada };
+    return { success: true, fatura: faturaAtualizada, dataFimPeriodo };
   });
+
+  // Dispara e-mail de confirmação de pagamento para o veterinário
+  if (result.success && fatura.assinatura?.veterinario?.user?.email) {
+    try {
+      const { sendPaymentConfirmedEmail } = await import('@/lib/email');
+      await sendPaymentConfirmedEmail({
+        to: fatura.assinatura.veterinario.user.email,
+        nome: fatura.assinatura.veterinario.nomeCompleto,
+        planoNome: fatura.assinatura.plano.nome,
+        valor: finalValue,
+        proximoVencimento: result.dataFimPeriodo,
+      });
+    } catch (emailError) {
+      console.error('Falha ao enviar e-mail de confirmação de pagamento:', emailError);
+    }
+  }
+
+  return result;
 }
