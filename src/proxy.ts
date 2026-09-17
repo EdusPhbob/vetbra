@@ -16,8 +16,9 @@ export async function proxy(request: NextRequest) {
           { status: 403 }
         );
       }
-      const loginUrl = new URL('/', request.url);
-      loginUrl.searchParams.set('auth_required', 'admin');
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      loginUrl.searchParams.set('reason', 'admin_required');
       return NextResponse.redirect(loginUrl);
     }
   }
@@ -31,8 +32,9 @@ export async function proxy(request: NextRequest) {
           { status: 401 }
         );
       }
-      const loginUrl = new URL('/', request.url);
-      loginUrl.searchParams.set('auth_required', 'vet');
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      loginUrl.searchParams.set('reason', 'auth_required');
       return NextResponse.redirect(loginUrl);
     }
   }

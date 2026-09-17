@@ -11,6 +11,7 @@ import {
   MetodoPagamento, 
   ProcedimentoCategoria 
 } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -108,7 +109,7 @@ async function main() {
     create: {
       email: 'admin@vetbra.com.br',
       login: 'admin',
-      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0', // admin123
+      senhaHash: bcrypt.hashSync('admin123', 10),
       nome: 'Administrador VetBra',
       role: Role.ADMIN
     }
@@ -122,7 +123,7 @@ async function main() {
     create: {
       email: 'alexandre.mendes@vetbra.com',
       login: 'dr.alexandre',
-      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0', // vet123
+      senhaHash: bcrypt.hashSync('vet123', 10),
       nome: 'Dr. Alexandre Mendes',
       role: Role.VET
     }
@@ -271,7 +272,7 @@ async function main() {
     create: {
       email: 'camila.silvestres@vetbra.com',
       login: 'dra.camila',
-      senhaHash: '$2a$10$7Z2WzYg2K8i8h1m2z3v4pe5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0',
+      senhaHash: bcrypt.hashSync('vet123', 10),
       nome: 'Dra. Camila Barros',
       role: Role.VET
     }

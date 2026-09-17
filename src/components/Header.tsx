@@ -68,7 +68,7 @@ export default function Header() {
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/login"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 backdrop-blur-sm transition-all"
             >
               <User className="w-3.5 h-3.5 text-white" />
@@ -122,7 +122,7 @@ export default function Header() {
             </Link>
             <div className="pt-2 border-t border-white/20 flex flex-col gap-2">
               <Link
-                href="/dashboard"
+                href="/login"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full text-center py-2.5 rounded-xl text-xs font-bold text-white bg-white/15 border border-white/20"
               >

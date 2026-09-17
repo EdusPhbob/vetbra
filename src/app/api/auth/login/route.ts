@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signSessionToken, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { checkRateLimit, recordFailedAttempt, clearRateLimit } from '@/lib/rateLimit';
+import { registrarAuditoria } from '@/lib/audit';
 
 export async function POST(request: Request) {
   try {
@@ -13,8 +15,20 @@ export async function POST(request: Request) {
     }
 
     const term = loginOrEmail.trim().toLowerCase();
+    const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+    const rateKey = `${ip}_${term}`;
 
-    // Busca usuário por email ou login
+    // 1. Verificação de Ataques de Força Bruta (Rate Limiting)
+    const rateCheck = checkRateLimit(rateKey);
+    if (!rateCheck.allowed) {
+      return NextResponse.json({
+        error: `Muitas tentativas consecutivas. Por segurança contra ataques, o acesso foi temporariamente bloqueado. Tente novamente em ${rateCheck.blockedSeconds} segundos.`,
+        isBlocked: true,
+        blockedSeconds: rateCheck.blockedSeconds,
+      }, { status: 429 });
+    }
+
+    // 2. Busca o usuário por email ou login
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -43,22 +57,61 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'Credenciais inválidas. Usuário não encontrado.' }, { status: 401 });
+      const fail = recordFailedAttempt(rateKey);
+      if (fail.isBlocked) {
+        return NextResponse.json({
+          error: 'Limite de 5 tentativas excedido. Acesso bloqueado por 2 minutos para proteger o sistema.',
+          isBlocked: true,
+          blockedSeconds: fail.blockedSeconds,
+        }, { status: 429 });
+      }
+
+      return NextResponse.json({
+        error: `Credenciais inválidas. Restam ${fail.remainingAttempts} tentativa(s) antes do bloqueio temporário de 2 minutos.`,
+        remainingAttempts: fail.remainingAttempts,
+      }, { status: 401 });
     }
 
-    // Verifica a senha criptografada via bcrypt
+    // 3. Verifica a senha criptografada via bcryptjs (10 rounds de salt)
     const senhaCorreta = await bcrypt.compare(senha, user.senhaHash);
     if (!senhaCorreta) {
-      return NextResponse.json({ error: 'Credenciais inválidas. Senha incorreta.' }, { status: 401 });
+      const fail = recordFailedAttempt(rateKey);
+      if (fail.isBlocked) {
+        return NextResponse.json({
+          error: 'Limite de 5 tentativas incorretas excedido. Acesso temporariamente bloqueado por 2 minutos.',
+          isBlocked: true,
+          blockedSeconds: fail.blockedSeconds,
+        }, { status: 429 });
+      }
+
+      return NextResponse.json({
+        error: `Senha incorreta. Restam ${fail.remainingAttempts} tentativa(s) antes do bloqueio temporário de 2 minutos.`,
+        remainingAttempts: fail.remainingAttempts,
+      }, { status: 401 });
     }
 
-    // Cria token de sessão seguro com JWT
+    // 4. Sucesso! Limpa o contador de tentativas daquele IP
+    clearRateLimit(rateKey);
+
+    // 5. Gera token de sessão seguro com JWT assinado (jose)
     const token = await signSessionToken({
       userId: user.id,
       email: user.email,
       role: user.role,
       nome: user.nome,
       vetId: user.veterinario?.id || null,
+    });
+
+    // 6. Registra login na trilha de auditoria
+    await registrarAuditoria({
+      entidade: 'USUARIO',
+      registroId: user.id,
+      acao: 'EDICAO',
+      autorId: user.id,
+      autorEmail: user.email,
+      autorRole: user.role,
+      ip,
+      justificativa: 'Autenticação bem-sucedida no SaaS VetBra',
     });
 
     const response = NextResponse.json({
@@ -70,10 +123,11 @@ export async function POST(request: Request) {
         nome: user.nome,
         role: user.role
       },
-      vet: user.veterinario || null
+      vet: user.veterinario || null,
+      redirectTo: user.role === 'ADMIN' ? '/admin' : '/dashboard'
     });
 
-    // Define cookie HTTP-Only seguro (válido por 7 dias)
+    // Define cookie HTTP-Only seguro (7 dias)
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
       value: token,
@@ -81,7 +135,7 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 dias
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
