@@ -42,6 +42,11 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2 text-xs text-slate-500 font-medium">
                 <li>
+                  <Link href="/veterinarios" className="hover:text-emerald-700 transition-colors font-semibold text-emerald-800">
+                    Diretório de Veterinários
+                  </Link>
+                </li>
+                <li>
                   <Link href="/buscar" className="hover:text-emerald-700 transition-colors">
                     Buscar Clínicas & Vets
                   </Link>

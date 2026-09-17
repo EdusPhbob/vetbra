@@ -10,6 +10,21 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.vetbra.com.br',
+          },
+        ],
+        destination: 'https://vetbra.com.br/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

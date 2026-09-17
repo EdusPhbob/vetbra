@@ -1,51 +1,88 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
-import { VetStatusGeral, CrmvStatus } from '@prisma/client';
+import { 
+  VET_PUBLIC_FILTER, 
+  getEstadosComVeterinarios, 
+  getCidadesDoEstado, 
+  getEspecialidadesComVeterinarios 
+} from '@/lib/seo-locations';
+
+export const revalidate = 3600; // Revalida o sitemap a cada 1 hora automaticamente
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vetbra.com.br';
+  const baseUrl = 'https://vetbra.com.br';
+  const now = new Date();
 
-  // 1. Rotas estáticas essenciais
+  // 1. Rotas estáticas institucionais e diretório raiz
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/buscar`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
+      url: `${baseUrl}/veterinarios`,
+      lastModified: now,
+      changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/planos`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
+      url: `${baseUrl}/buscar`,
+      lastModified: now,
+      changeFrequency: 'daily',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/cadastro`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
+      url: `${baseUrl}/planos`,
+      lastModified: now,
+      changeFrequency: 'weekly',
       priority: 0.7,
     },
   ];
 
   try {
-    // 2. Perfis públicos de veterinários ativos
+    // 2. Estados com veterinários ativos reais
+    const estados = await getEstadosComVeterinarios();
+    const estadoRoutes: MetadataRoute.Sitemap = estados.map((est) => ({
+      url: `${baseUrl}/veterinarios/${est.uf.toLowerCase()}`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.85,
+    }));
+
+    // 3. Municípios com veterinários ativos reais (evita 100% páginas vazias)
+    const cidadesRoutes: MetadataRoute.Sitemap = [];
+    for (const est of estados) {
+      const cidades = await getCidadesDoEstado(est.uf);
+      for (const cid of cidades) {
+        cidadesRoutes.push({
+          url: `${baseUrl}/veterinarios/${est.uf.toLowerCase()}/${cid.slug}`,
+          lastModified: now,
+          changeFrequency: 'daily',
+          priority: 0.8,
+        });
+      }
+    }
+
+    // 4. Especialidades que possuem profissionais ativos
+    const especialidades = await getEspecialidadesComVeterinarios();
+    const especialidadeRoutes: MetadataRoute.Sitemap = especialidades.map((esp) => ({
+      url: `${baseUrl}/especialidades/${esp.slug}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.75,
+    }));
+
+    // 5. Todos os veterinários ativos e verificados (sem limite artificial de 1000)
     const vets = await prisma.veterinario.findMany({
-      where: {
-        statusGeral: VetStatusGeral.ATIVO,
-        crmvStatus: CrmvStatus.VERIFICADO,
-      },
+      where: VET_PUBLIC_FILTER,
       select: {
         slug: true,
         updatedAt: true,
         destaqueBusca: true,
       },
-      take: 1000,
+      take: 50000, // Limite oficial do protocolo Sitemaps por arquivo XML
     });
 
     const vetRoutes: MetadataRoute.Sitemap = vets.map((vet) => ({
@@ -55,23 +92,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: vet.destaqueBusca ? 0.9 : 0.7,
     }));
 
-    // 3. Artigos de Blog publicados
-    const artigos = await prisma.artigo.findMany({
-      where: { publicado: true },
-      select: { slug: true, updatedAt: true },
-      take: 500,
-    });
-
-    const artigoRoutes: MetadataRoute.Sitemap = artigos.map((artigo) => ({
-      url: `${baseUrl}/blog/${artigo.slug}`,
-      lastModified: artigo.updatedAt,
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    }));
-
-    return [...staticRoutes, ...vetRoutes, ...artigoRoutes];
+    return [
+      ...staticRoutes,
+      ...estadoRoutes,
+      ...cidadesRoutes,
+      ...especialidadeRoutes,
+      ...vetRoutes,
+    ];
   } catch (error) {
-    console.error('Erro ao gerar sitemap dinâmico:', error);
+    console.error('Erro ao gerar sitemap dinâmico escalável:', error);
     return staticRoutes;
   }
 }

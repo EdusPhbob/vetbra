@@ -38,12 +38,18 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav (Letras Brancas - Mantidas no topo e na rolagem) */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-7">
             <Link 
               href="/#como-funciona" 
               className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
             >
               Como Funciona
+            </Link>
+            <Link 
+              href="/veterinarios" 
+              className="text-sm font-semibold text-white hover:text-emerald-200 transition-colors"
+            >
+              Diretório Nacional
             </Link>
             <Link 
               href="/buscar" 
@@ -99,6 +105,13 @@ export default function Header() {
               className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
             >
               Como Funciona
+            </Link>
+            <Link
+              href="/veterinarios"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Diretório Nacional de Vets
             </Link>
             <Link
               href="/buscar"

@@ -629,6 +629,68 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* SEÇÃO SEO: DIRETÓRIO NACIONAL DE VETERINÁRIOS */}
+      <section className="bg-white py-14 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                Cobertura Nacional
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
+                Veterinários por Região e Estado
+              </h2>
+            </div>
+            <Link
+              href="/veterinarios"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#147A44] hover:underline"
+            >
+              <span>Ver todos os estados e cidades</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <Link
+              href="/veterinarios/sp"
+              className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left group"
+            >
+              <span className="text-xs font-bold text-slate-900 group-hover:text-[#147A44] block">
+                São Paulo (SP)
+              </span>
+              <span className="text-[11px] text-slate-500">Clínicas e Vets</span>
+            </Link>
+            <Link
+              href="/veterinarios/sp/santo-andre"
+              className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left group"
+            >
+              <span className="text-xs font-bold text-slate-900 group-hover:text-[#147A44] block">
+                Santo André (SP)
+              </span>
+              <span className="text-[11px] text-slate-500">Vets Auditados</span>
+            </Link>
+            <Link
+              href="/veterinarios/sp/ribeirao-pires"
+              className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left group"
+            >
+              <span className="text-xs font-bold text-slate-900 group-hover:text-[#147A44] block">
+                Ribeirão Pires (SP)
+              </span>
+              <span className="text-[11px] text-slate-500">Atendimento Pet</span>
+            </Link>
+            <Link
+              href="/veterinarios"
+              className="p-3.5 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 hover:bg-emerald-100/50 transition-all text-left group flex flex-col justify-center"
+            >
+              <span className="text-xs font-bold text-[#147A44] block">
+                + Mais Estados
+              </span>
+              <span className="text-[11px] text-emerald-600">Explorar Diretório</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );

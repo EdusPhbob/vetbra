@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import prisma from '@/lib/prisma';
@@ -15,9 +16,12 @@ import {
   Share2,
   AlertCircle,
   Stethoscope,
-  MessageSquare
+  MessageSquare,
+  ChevronRight,
+  Home
 } from 'lucide-react';
 import { formatCrmv, checkCrmvValidity } from '@/lib/crmv';
+import { slugify } from '@/lib/seo-locations';
 import WhatsAppContactButton from '@/components/WhatsAppContactButton';
 import AvaliacaoFormModal from '@/components/AvaliacaoFormModal';
 import CrmvBadge from '@/components/CrmvBadge';
@@ -36,19 +40,66 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   });
 
-  if (!vet) return { title: 'Veterinário não encontrado | VetBra' };
+  if (!vet) return { title: 'Veterinário não encontrado | VetBra', robots: { index: false, follow: false } };
 
-  const cidade = vet.enderecos[0]?.cidade || 'Brasil';
-  const especialidade = vet.especialidades[0]?.especialidade?.nome || 'Veterinária Geral';
+  const endereco = vet.enderecos[0];
+  const cidade = endereco?.cidade || vet.cidadeBase || 'Brasil';
+  const uf = (endereco?.estado || vet.estadoBase || vet.crmvUf || 'BR').toUpperCase();
+  const especialidade = vet.especialidades[0]?.especialidade?.nome || 'Clínica Veterinária Geral';
+
+  const isPublicoIndexavel = vet.statusGeral === 'ATIVO' && vet.crmvStatus === 'VERIFICADO';
+  const crmvFormatado = formatCrmv(vet.crmvNumero, vet.crmvUf);
+  const canonicalUrl = `https://vetbra.com.br/vets/${vet.slug}`;
+
+  const title = `Dr(a). ${vet.nomeCompleto} - Veterinário(a) em ${cidade} - ${uf} | CRMV ${crmvFormatado} | VetBra`;
+  const description = vet.bio
+    ? `${vet.bio.substring(0, 140)}... Atendimento em ${cidade} - ${uf}. CRMV ${crmvFormatado} verificado no CFMV.`
+    : `Encontre Dr(a). ${vet.nomeCompleto}, veterinário(a) em ${cidade} - ${uf} (${especialidade}). CRMV ${crmvFormatado} verificado. Agendamento e atendimento no VetBra.`;
 
   return {
-    title: `${vet.nomeCompleto} - ${especialidade} em ${cidade} | CRMV ${formatCrmv(vet.crmvNumero, vet.crmvUf)}`,
-    description: vet.bio || `Agende sua consulta com ${vet.nomeCompleto}. Atendimento especializado em ${cidade} com CRMV ativo e verificado no CFMV.`,
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    robots: isPublicoIndexavel
+      ? {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            'max-video-preview': -1,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+          },
+        }
+      : {
+          index: false,
+          follow: false,
+        },
     openGraph: {
-      title: `${vet.nomeCompleto} - CRMV ${formatCrmv(vet.crmvNumero, vet.crmvUf)}`,
-      description: vet.bio || 'Consulte os procedimentos e preços de atendimento.',
-      images: vet.fotoPerfilUrl ? [vet.fotoPerfilUrl] : []
-    }
+      type: 'profile',
+      url: canonicalUrl,
+      title,
+      description,
+      siteName: 'VetBra',
+      locale: 'pt_BR',
+      images: [
+        {
+          url: vet.fotoPerfilUrl || 'https://vetbra.com.br/og-image.jpg',
+          width: 800,
+          height: 800,
+          alt: `Foto de perfil de ${vet.nomeCompleto}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [vet.fotoPerfilUrl || 'https://vetbra.com.br/og-image.jpg'],
+    },
   };
 }
 
@@ -87,61 +138,103 @@ export default async function VetProfilePage({ params }: Props) {
     `Olá Dr(a). ${vet.nomeCompleto}, vi seu perfil no portal VetBra e gostaria de consultar horários para atendimento do meu pet.`
   );
 
-  // Schema.org para o Google (SEO Local, Estrelas Douradas & Rich Snippets)
+  // Schema.org para o Google (SEO Local, Rich Snippets e BreadcrumbList)
   const especialidadesNomes = vet.especialidades
     ?.map((e) => e.especialidade?.nome)
     .filter(Boolean) || [];
 
+  const cidadeNome = endereco.cidade || vet.cidadeBase || '';
+  const estadoUf = (endereco.estado || vet.estadoBase || vet.crmvUf || 'SP').toUpperCase();
+  const cidadeSlug = slugify(cidadeNome);
+
   const schemaJsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'VeterinaryCare',
-    '@id': `https://vetbra.duosat.com.br/vets/${vet.slug}#veterinary`,
-    name: vet.nomeSocialOuClinica || vet.nomeCompleto,
-    legalName: vet.nomeCompleto,
-    url: `https://vetbra.duosat.com.br/vets/${vet.slug}`,
-    image: vet.fotoPerfilUrl || 'https://vetbra.duosat.com.br/icon-512.png',
-    telephone: vet.telefone || vet.whatsapp || undefined,
-    description: vet.bio || `Atendimento veterinário especializado com Dr(a). ${vet.nomeCompleto} em ${endereco.cidade || 'Brasil'} com CRMV verificado no CFMV.`,
-    priceRange: 'R$ R$',
-    identifier: `CRMV-${vet.crmvUf} ${vet.crmvNumero}`,
-    medicalSpecialty: especialidadesNomes.length > 0 ? especialidadesNomes : undefined,
-    address: endereco.cidade ? {
-      '@type': 'PostalAddress',
-      streetAddress: endereco.logradouro ? `${endereco.logradouro}, ${endereco.numero || 's/n'}` : '',
-      addressLocality: endereco.cidade,
-      addressRegion: endereco.estado,
-      postalCode: endereco.cep || '',
-      addressCountry: 'BR'
-    } : undefined,
-    geo: endereco.latitude && endereco.longitude ? {
-      '@type': 'GeoCoordinates',
-      latitude: Number(endereco.latitude),
-      longitude: Number(endereco.longitude)
-    } : undefined,
-    // Estrelas Douradas no Google: AggregateRating
-    aggregateRating: totalReviews > 0 ? {
-      '@type': 'AggregateRating',
-      ratingValue: mediaNota,
-      reviewCount: totalReviews,
-      bestRating: '5',
-      worstRating: '1'
-    } : undefined,
-    // Avaliações de tutores indexadas pelo Google
-    review: vet.avaliacoes.length > 0 ? vet.avaliacoes.slice(0, 10).map((av) => ({
-      '@type': 'Review',
-      author: {
-        '@type': 'Person',
-        name: av.nomeTutor || 'Tutor'
+    '@graph': [
+      {
+        '@type': 'VeterinaryCare',
+        '@id': `https://vetbra.com.br/vets/${vet.slug}#veterinary`,
+        name: vet.nomeSocialOuClinica || vet.nomeCompleto,
+        legalName: vet.nomeCompleto,
+        url: `https://vetbra.com.br/vets/${vet.slug}`,
+        image: vet.fotoPerfilUrl || 'https://vetbra.com.br/icon.jpg',
+        telephone: vet.telefone || vet.whatsapp || undefined,
+        description: vet.bio || `Atendimento veterinário especializado com Dr(a). ${vet.nomeCompleto} em ${cidadeNome || 'Brasil'} com CRMV verificado no CFMV.`,
+        priceRange: 'R$',
+        identifier: `CRMV-${vet.crmvUf} ${vet.crmvNumero}`,
+        medicalSpecialty: especialidadesNomes.length > 0 ? especialidadesNomes : undefined,
+        address: cidadeNome ? {
+          '@type': 'PostalAddress',
+          streetAddress: endereco.logradouro ? `${endereco.logradouro}, ${endereco.numero || 's/n'}` : '',
+          addressLocality: cidadeNome,
+          addressRegion: estadoUf,
+          postalCode: endereco.cep || '',
+          addressCountry: 'BR'
+        } : undefined,
+        geo: endereco.latitude && endereco.longitude ? {
+          '@type': 'GeoCoordinates',
+          latitude: Number(endereco.latitude),
+          longitude: Number(endereco.longitude)
+        } : undefined,
+        // Estrelas e avaliações reais
+        aggregateRating: totalReviews > 0 ? {
+          '@type': 'AggregateRating',
+          ratingValue: mediaNota,
+          reviewCount: totalReviews,
+          bestRating: '5',
+          worstRating: '1'
+        } : undefined,
+        review: vet.avaliacoes.length > 0 ? vet.avaliacoes.slice(0, 10).map((av) => ({
+          '@type': 'Review',
+          author: {
+            '@type': 'Person',
+            name: av.nomeTutor || 'Tutor'
+          },
+          datePublished: av.createdAt ? new Date(av.createdAt).toISOString().split('T')[0] : undefined,
+          reviewBody: av.comentario || 'Atendimento veterinário atencioso e qualificado.',
+          reviewRating: {
+            '@type': 'Rating',
+            ratingValue: av.nota,
+            bestRating: '5',
+            worstRating: '1'
+          }
+        })) : undefined
       },
-      datePublished: av.createdAt ? new Date(av.createdAt).toISOString().split('T')[0] : undefined,
-      reviewBody: av.comentario || 'Atendimento veterinário atencioso e qualificado.',
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: av.nota,
-        bestRating: '5',
-        worstRating: '1'
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Início',
+            item: 'https://vetbra.com.br'
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Veterinários',
+            item: 'https://vetbra.com.br/veterinarios'
+          },
+          ...(estadoUf ? [{
+            '@type': 'ListItem',
+            position: 3,
+            name: estadoUf,
+            item: `https://vetbra.com.br/veterinarios/${estadoUf.toLowerCase()}`
+          }] : []),
+          ...(cidadeNome && estadoUf ? [{
+            '@type': 'ListItem',
+            position: 4,
+            name: cidadeNome,
+            item: `https://vetbra.com.br/veterinarios/${estadoUf.toLowerCase()}/${cidadeSlug}`
+          }] : []),
+          {
+            '@type': 'ListItem',
+            position: cidadeNome && estadoUf ? 5 : (estadoUf ? 4 : 3),
+            name: vet.nomeCompleto,
+            item: `https://vetbra.com.br/vets/${vet.slug}`
+          }
+        ]
       }
-    })) : undefined
+    ]
   };
 
   return (
@@ -154,8 +247,38 @@ export default async function VetProfilePage({ params }: Props) {
 
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
         
+        {/* BREADCRUMB DE NAVEGAÇÃO RASTREÁVEL PELO GOOGLE */}
+        <nav aria-label="Breadcrumb" className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5 font-medium">
+          <Link href="/" className="hover:text-emerald-700 transition-colors flex items-center gap-1">
+            <Home className="w-3.5 h-3.5" />
+            Início
+          </Link>
+          <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+          <Link href="/veterinarios" className="hover:text-emerald-700 transition-colors">
+            Veterinários
+          </Link>
+          {estadoUf && (
+            <>
+              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+              <Link href={`/veterinarios/${estadoUf.toLowerCase()}`} className="hover:text-emerald-700 transition-colors">
+                {estadoUf}
+              </Link>
+            </>
+          )}
+          {cidadeNome && estadoUf && (
+            <>
+              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+              <Link href={`/veterinarios/${estadoUf.toLowerCase()}/${cidadeSlug}`} className="hover:text-emerald-700 transition-colors">
+                {cidadeNome}
+              </Link>
+            </>
+          )}
+          <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+          <span className="text-slate-800 font-semibold truncate max-w-xs">{vet.nomeCompleto}</span>
+        </nav>
+
         {/* BANNER / TOPO DO PERFIL (Branco limpo ou foto de capa personalizada) */}
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="h-36 sm:h-56 bg-white border-b border-slate-100 relative overflow-hidden">
