@@ -42,6 +42,42 @@ export default function AvaliacaoFormModal({
 
   const MAX_CARACTERES = 1024;
 
+  // Limite de 60 dias anteriores ao dia vigente
+  const hoje = new Date();
+  const maxDate = hoje.toISOString().split('T')[0];
+  const sessentaDiasAtras = new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const minDate = sessentaDiasAtras.toISOString().split('T')[0];
+
+  const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let valor = e.target.value.replace(/\D/g, '');
+
+    // Não permite zero à esquerda no DDD
+    while (valor.startsWith('0')) {
+      valor = valor.slice(1);
+    }
+
+    // Não ultrapassa o número correto (máximo 11 dígitos: DDD de 2 números + 9 dígitos)
+    if (valor.length > 11) {
+      valor = valor.slice(0, 11);
+    }
+
+    // Aplica formatação automática padrão Brasil
+    let formatado = valor;
+    if (valor.length > 6) {
+      if (valor.length <= 10) {
+        formatado = `(${valor.slice(0, 2)}) ${valor.slice(2, 6)}-${valor.slice(6)}`;
+      } else {
+        formatado = `(${valor.slice(0, 2)}) ${valor.slice(2, 7)}-${valor.slice(7, 11)}`;
+      }
+    } else if (valor.length > 2) {
+      formatado = `(${valor.slice(0, 2)}) ${valor.slice(2)}`;
+    } else if (valor.length > 0) {
+      formatado = `(${valor}`;
+    }
+
+    setTelefone(formatado);
+  };
+
   const getNotaLabel = (val: number) => {
     switch (val) {
       case 1: return '1 - Muito Insatisfeito (Péssimo)';
@@ -62,8 +98,37 @@ export default function AvaliacaoFormModal({
       return;
     }
 
+    // Validação estrita do Telefone / WhatsApp
+    if (telefone.trim()) {
+      const digitos = telefone.replace(/\D/g, '');
+      if (digitos.startsWith('0')) {
+        setErroMsg('O DDD não pode começar com 0. Digite o DDD de 2 números (ex: 11) seguido do telefone.');
+        return;
+      }
+      if (digitos.length < 10 || digitos.length > 11) {
+        setErroMsg('O telefone/WhatsApp não pode ultrapassar o tamanho correto. Deve conter DDD com 2 números e 8 ou 9 dígitos (ex: (11) 98765-4321).');
+        return;
+      }
+      const ddd = parseInt(digitos.slice(0, 2), 10);
+      if (isNaN(ddd) || ddd < 11 || ddd > 99) {
+        setErroMsg('DDD inválido. Informe um DDD de 2 dígitos entre 11 e 99 (sem zero à frente).');
+        return;
+      }
+    }
+
+    // Validação estrita da data de atendimento (máximo 60 dias atrás e não futura)
     if (!dataAtendimento) {
       setErroMsg('Informe a data em que o atendimento foi realizado.');
+      return;
+    }
+
+    if (dataAtendimento < minDate) {
+      setErroMsg(`A data do atendimento não pode ser anterior a 60 dias da data vigente (mínimo permitido: ${sessentaDiasAtras.toLocaleDateString('pt-BR')}).`);
+      return;
+    }
+
+    if (dataAtendimento > maxDate) {
+      setErroMsg('A data do atendimento não pode ser posterior à data de hoje.');
       return;
     }
 
@@ -249,27 +314,38 @@ export default function AvaliacaoFormModal({
                     <input
                       type="text"
                       value={telefone}
-                      onChange={(e) => setTelefone(e.target.value)}
+                      onChange={handleTelefoneChange}
+                      maxLength={15}
+                      inputMode="numeric"
                       placeholder="(11) 99999-8888"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
                     />
+                    <span className="text-[10px] text-slate-400 block">
+                      DDD com 2 dígitos sem zero na frente (ex: 11)
+                    </span>
                   </div>
                 </div>
 
-                {/* 3. DIA E HORA DO ATENDIMENTO (EXIGÊNCIA DO CLIENTE) */}
+                {/* 3. DIA E HORA DO ATENDIMENTO (EXIGÊNCIA: MÁXIMO 60 DIAS ATRÁS) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-emerald-950 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-emerald-700" /> Dia do Atendimento *
+                    <label className="text-xs font-bold text-emerald-950 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-700" /> Dia do Atendimento *
+                      </span>
                     </label>
                     <input
                       type="date"
                       value={dataAtendimento}
                       onChange={(e) => setDataAtendimento(e.target.value)}
                       required
-                      max={new Date().toISOString().split('T')[0]}
+                      min={minDate}
+                      max={maxDate}
                       className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-600"
                     />
+                    <span className="text-[10px] text-emerald-700 font-semibold block">
+                      Permitido: de {sessentaDiasAtras.toLocaleDateString('pt-BR')} até hoje
+                    </span>
                   </div>
 
                   <div className="space-y-1">
@@ -283,6 +359,9 @@ export default function AvaliacaoFormModal({
                       placeholder="14:30"
                       className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-600"
                     />
+                    <span className="text-[10px] text-slate-400 block">
+                      Horário estimado da consulta
+                    </span>
                   </div>
                 </div>
 

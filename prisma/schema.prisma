@@ -501,6 +501,7 @@ model Avaliacao {
   veterinario   Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
 
   nomeTutor       String
+  telefone        String?         // Telefone/WhatsApp informado pelo tutor
   telefoneHash    String?         // Hash SHA-256 do telefone para evitar spam e respeitar LGPD
   nota            Int             // 1 a 5 estrelas
   comentario      String          @db.Text

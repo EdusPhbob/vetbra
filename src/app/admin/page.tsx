@@ -1116,6 +1116,11 @@ export default function AdminCrmvModerationPage() {
                                 <span className="text-xs font-black text-slate-900">
                                   Tutor: {av.nomeTutor}
                                 </span>
+                                {av.telefone && (
+                                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    WhatsApp: {av.telefone}
+                                  </span>
+                                )}
                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                                   isPublicada ? 'bg-emerald-100 text-emerald-800' : isPendente ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
                                 }`}>
