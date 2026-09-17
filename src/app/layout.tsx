@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import DevRouteNavigator from "@/components/DevRouteNavigator";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -66,7 +65,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col relative">
         {children}
-        <DevRouteNavigator />
       </body>
     </html>
   );
