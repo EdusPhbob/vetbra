@@ -73,7 +73,8 @@ model Veterinario {
   crmvNotasAuditoria    String?
   
   // Tipo de Atendimento
-  tipoEstabelecimento   String            @default("Clinica") // Autonomo, Clinica, Hospital 24h
+  tipoEstabelecimento   String            @default("Clinica") // Clinica, Consultorio, Hospital 24h, Vet Domiciliar
+  meioTransporte        String?           @default("Nenhum")  // Carro, Moto, Carro e Moto, Nenhum
   atende24h             Boolean           @default(false)
   atendeDomiciliar      Boolean           @default(false)
   atendeEmergencia      Boolean           @default(false)

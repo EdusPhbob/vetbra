@@ -54,8 +54,30 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
   const [userCity, setUserCity] = useState('São Paulo, SP');
   const [detectingGps, setDetectingGps] = useState(false);
   const [raioKm, setRaioKm] = useState<number>(15); // 15 km padrão
+  const [filtroModalidade, setFiltroModalidade] = useState<'TODOS' | 'FIXO' | 'CARRO' | 'MOTO'>('TODOS');
   const [selectedVet, setSelectedVet] = useState<any>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  // Helper para determinar ícone e cor do pin
+  const getVetIconInfo = (vet: any) => {
+    const isFixo = vet.tipoEstabelecimento === 'Clínica' || vet.tipoEstabelecimento === 'Consultório' || vet.tipoEstabelecimento === 'Hospital 24h';
+    const meio = (vet.meioTransporte || '').toLowerCase();
+    const isDomiciliar = vet.atendeDomiciliar || meio.includes('carro') || meio.includes('moto');
+
+    if (isFixo && isDomiciliar) {
+      if (meio.includes('moto')) {
+        return { emoji: '🏥🏍️', label: 'Clínica Fixa + Vet de Moto', color: '#0d9488', bgClass: 'bg-teal-50 text-teal-800 border-teal-300', isFixo: true, isCarro: false, isMoto: true };
+      }
+      return { emoji: '🏥🚗', label: 'Clínica Fixa + Vet de Carro', color: '#0284c7', bgClass: 'bg-sky-50 text-sky-800 border-sky-300', isFixo: true, isCarro: true, isMoto: false };
+    } else if (isDomiciliar) {
+      if (meio.includes('moto')) {
+        return { emoji: '🏍️', label: 'Vet Domiciliar (Moto Express)', color: '#d97706', bgClass: 'bg-amber-50 text-amber-800 border-amber-300', isFixo: false, isCarro: false, isMoto: true };
+      }
+      return { emoji: '🚗', label: 'Vet Domiciliar (Carro / Móvel)', color: '#2563eb', bgClass: 'bg-blue-50 text-blue-800 border-blue-300', isFixo: false, isCarro: true, isMoto: false };
+    }
+    // Somente Fixo (Casinha / Clínica)
+    return { emoji: '🏥', label: 'Consultório / Clínica Fixa', color: '#147A44', bgClass: 'bg-emerald-50 text-emerald-800 border-emerald-300', isFixo: true, isCarro: false, isMoto: false };
+  };
 
   // Filtra veterinários válidos com coordenadas
   const vetsComCoords = vets.filter(v => {
@@ -64,11 +86,19 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
   }).map(v => {
     const end = v.enderecos[0];
     const dist = calcularDistanciaKm(userLocation.lat, userLocation.lng, end.latitude, end.longitude);
-    return { ...v, dist, end };
+    const info = getVetIconInfo(v);
+    return { ...v, dist, end, info };
   });
 
-  // Vets filtrados pelo raio selecionado
-  const vetsNoRaio = vetsComCoords.filter(v => raioKm === 0 || v.dist <= raioKm);
+  // Vets filtrados pelo raio e pela modalidade (Fixo / Carro / Moto)
+  const vetsNoRaio = vetsComCoords.filter(v => {
+    const dentroRaio = raioKm === 0 || v.dist <= raioKm;
+    if (!dentroRaio) return false;
+    if (filtroModalidade === 'FIXO') return v.info.isFixo;
+    if (filtroModalidade === 'CARRO') return v.info.isCarro;
+    if (filtroModalidade === 'MOTO') return v.info.isMoto;
+    return true;
+  });
 
   // Tenta obter localização real do usuário ao carregar
   useEffect(() => {
@@ -80,9 +110,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
           setUserLocation({ lat, lng });
           setUserCity('Sua Localização Atual');
         },
-        () => {
-          // Mantém São Paulo caso não autorize
-        },
+        () => {},
         { timeout: 8000 }
       );
     }
@@ -99,7 +127,6 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
 
       if (!isMounted || !mapContainerRef.current) return;
 
-      // Cria o mapa centrado no usuário
       const map = L.map(mapContainerRef.current, {
         center: [userLocation.lat, userLocation.lng],
         zoom: 13,
@@ -107,13 +134,11 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
         scrollWheelZoom: true
       });
 
-      // Tiles ultra-clean e elegantes estilo Apple (CartoDB Positron)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         maxZoom: 19
       }).addTo(map);
 
-      // Ícone do Usuário (Ponto azul pulsante)
       const userIcon = L.divIcon({
         className: 'user-marker',
         html: `
@@ -132,7 +157,6 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
 
       userMarkerRef.current = userMarker;
 
-      // Círculo translúcido do raio em km
       const circle = L.circle([userLocation.lat, userLocation.lng], {
         radius: raioKm * 1000,
         color: '#147A44',
@@ -144,7 +168,6 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
 
       circleInstanceRef.current = circle;
 
-      // Grupo de marcadores para os veterinários
       const markersLayer = L.layerGroup().addTo(map);
       markersLayerRef.current = markersLayer;
 
@@ -163,7 +186,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
     };
   }, []);
 
-  // Atualiza marcadores e raio sempre que a localização, raio ou vets mudarem
+  // Atualiza marcadores sempre que filtros ou vets mudarem
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
@@ -171,12 +194,10 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
       const L = (await import('leaflet')).default;
       const map = mapInstanceRef.current;
 
-      // Atualiza posição do usuário
       if (userMarkerRef.current) {
         userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
       }
 
-      // Atualiza ou remove círculo do raio
       if (circleInstanceRef.current) {
         if (raioKm > 0) {
           circleInstanceRef.current.setLatLng([userLocation.lat, userLocation.lng]);
@@ -189,11 +210,9 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
         }
       }
 
-      // Limpa marcadores anteriores
       if (markersLayerRef.current) {
         markersLayerRef.current.clearLayers();
 
-        // Adiciona novos marcadores para os veterinários no raio
         vetsNoRaio.forEach((vet) => {
           const isSelected = selectedVet?.id === vet.id;
 
@@ -201,9 +220,9 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
             className: 'vet-pin',
             html: `
               <div style="
-                background: ${isSelected ? '#059669' : '#147A44'};
+                background: ${isSelected ? '#059669' : vet.info.color};
                 color: white;
-                padding: 6px 10px;
+                padding: 6px 12px;
                 border-radius: 9999px;
                 box-shadow: 0 4px 14px rgba(0,0,0,0.25);
                 display: flex;
@@ -218,7 +237,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
                 cursor: pointer;
                 transition: transform 0.2s;
               ">
-                <span style="font-size: 13px;">🩺</span>
+                <span style="font-size: 14px;">${vet.info.emoji}</span>
                 <span>${vet.nomeCompleto.split(' ')[0]} ${vet.nomeCompleto.split(' ')[1] || ''}</span>
               </div>
             `,
@@ -238,9 +257,8 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
     }
 
     updateMarkers();
-  }, [mapReady, userLocation, raioKm, vetsNoRaio.length, selectedVet]);
+  }, [mapReady, userLocation, raioKm, filtroModalidade, vetsNoRaio.length, selectedVet]);
 
-  // Função para recentralizar no GPS do usuário
   const handleRecenterGps = () => {
     if (!('geolocation' in navigator)) return;
     setDetectingGps(true);
@@ -257,7 +275,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
       },
       () => {
         setDetectingGps(false);
-        alert('Não foi possível obter sua localização. Verifique a permissão do seu navegador.');
+        alert('Não foi possível obter sua localização.');
       },
       { timeout: 10000 }
     );
@@ -268,51 +286,90 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER DA SEÇÃO DO MAPA */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#147A44] text-xs font-bold mb-2 border border-emerald-300">
-              <MapPin className="w-3.5 h-3.5" /> Raio Geográfico & Proximidade
+              <MapPin className="w-3.5 h-3.5" /> Mapa com Diferenciação de Atendimento & Transporte
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-              Veterinários Próximos de Você no Mapa
+              Veterinários e Clínicas no Mapa
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-              Você está no centro do mapa. Ajuste o raio em km ou use o zoom do mouse para explorar os profissionais da sua região.
+              Diferenciamos no mapa médicos em consultório fixo (🏥), atendimento de carro (🚗) ou moto (🏍️).
             </p>
           </div>
 
-          {/* CONTROLE DE RAIO EM KM E GPS */}
+          {/* FILTROS DE TIPO E RAIO */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" /> Raio:
-            </span>
-            {[5, 10, 15, 30, 0].map((km) => (
+            {/* Filtros por Modalidade */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-xs">
               <button
-                key={km}
                 type="button"
-                onClick={() => {
-                  setRaioKm(km);
-                  if (mapInstanceRef.current) {
-                    const zoom = km === 5 ? 14 : km === 10 ? 13 : km === 15 ? 12 : km === 30 ? 11 : 10;
-                    mapInstanceRef.current.setZoom(zoom);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  raioKm === km
-                    ? 'bg-[#147A44] text-white shadow-md shadow-emerald-800/20'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:border-emerald-300'
+                onClick={() => setFiltroModalidade('TODOS')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filtroModalidade === 'TODOS' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {km === 0 ? 'Sem limite' : `${km} km`}
+                Todos
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setFiltroModalidade('FIXO')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  filtroModalidade === 'FIXO' ? 'bg-[#147A44] text-white' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                🏥 Fixo
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroModalidade('CARRO')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  filtroModalidade === 'CARRO' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                🚗 Carro
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroModalidade('MOTO')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  filtroModalidade === 'MOTO' ? 'bg-amber-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                🏍️ Moto
+              </button>
+            </div>
+
+            {/* Raio em KM */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-xs">
+              {[5, 15, 30, 0].map((km) => (
+                <button
+                  key={km}
+                  type="button"
+                  onClick={() => {
+                    setRaioKm(km);
+                    if (mapInstanceRef.current) {
+                      const zoom = km === 5 ? 14 : km === 15 ? 12 : km === 30 ? 11 : 10;
+                      mapInstanceRef.current.setZoom(zoom);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    raioKm === km
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {km === 0 ? 'Sem limite' : `${km} km`}
+                </button>
+              ))}
+            </div>
 
             <button
               type="button"
               onClick={handleRecenterGps}
               disabled={detectingGps}
-              className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 text-emerald-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-              title="Centralizar no meu GPS"
+              className="px-3 py-1.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 text-emerald-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
             >
               {detectingGps ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
@@ -363,12 +420,14 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
                         <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                      {selectedVet.especialidades?.[0]?.nome || 'Clínica Geral'}
-                    </p>
-                    <span className="inline-block mt-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      📍 a {selectedVet.dist} km de você
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${selectedVet.info?.bgClass || 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                        {selectedVet.info?.label || 'Atendimento Veterinário'}
+                      </span>
+                      <span className="inline-block text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        📍 a {selectedVet.dist} km
+                      </span>
+                    </div>
                   </div>
                 </div>
 

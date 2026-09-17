@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       cidade,
       estado,
       tipoEstabelecimento,
+      meioTransporte,
       atende24h,
       atendeDomiciliar,
       plano
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
         crmvUf,
         crmvStatus: CrmvStatus.PENDENTE,
         tipoEstabelecimento: tipoEstabelecimento || 'Clínica',
+        meioTransporte: meioTransporte || (atendeDomiciliar ? 'Carro' : 'Nenhum'),
         atende24h: !!atende24h,
         atendeDomiciliar: !!atendeDomiciliar,
         plano: (plano as PlanoTipo) || PlanoTipo.BASICO,

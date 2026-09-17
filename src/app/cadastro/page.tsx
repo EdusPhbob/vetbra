@@ -26,8 +26,9 @@ function CadastroContent() {
     cidade: 'São Paulo',
     estado: 'SP',
     tipoEstabelecimento: 'Clínica',
+    meioTransporte: 'Carro',
     atende24h: false,
-    atendeDomiciliar: false,
+    atendeDomiciliar: true,
     plano: planoInicial.toUpperCase()
   });
 
@@ -198,21 +199,21 @@ function CadastroContent() {
                 </div>
               </div>
 
-              {/* BLOCO 3: CLÍNICA & LOCALIZAÇÃO */}
+              {/* BLOCO 3: CLÍNICA, MODALIDADE E VEÍCULO */}
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100">
-                  3. Consultório & Local de Atendimento
+                  3. Modalidade de Atendimento & Veículo no Mapa
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Nome do Consultório ou Clínica</label>
+                    <label className="text-xs font-bold text-slate-700">Nome do Consultório ou Nome Fantasia</label>
                     <input
                       type="text"
                       name="nomeClinica"
                       value={form.nomeClinica}
                       onChange={handleChange}
-                      placeholder="Clínica Veterinária Silva"
+                      placeholder="Clínica Veterinária Silva / Dr. João Home Care"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
                     />
                   </div>
@@ -225,15 +226,32 @@ function CadastroContent() {
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
                     >
-                      <option value="Clínica">Clínica Veterinária</option>
-                      <option value="Consultório">Consultório Particular</option>
-                      <option value="Hospital 24h">Hospital Veterinário 24h</option>
-                      <option value="Autônomo Domiciliar">Atendimento Domiciliar / Home Care</option>
+                      <option value="Clínica">🏥 Clínica Veterinária Fixa</option>
+                      <option value="Consultório">🏥 Consultório Particular Fixo</option>
+                      <option value="Hospital 24h">🏥 Hospital Veterinário 24h</option>
+                      <option value="Autônomo Domiciliar">🚗 Atendimento Domiciliar / Vet Móvel</option>
                     </select>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">CEP</label>
+                    <label className="text-xs font-bold text-slate-700">
+                      Meio de Transporte / Deslocamento (Ícone no Mapa)
+                    </label>
+                    <select
+                      name="meioTransporte"
+                      value={form.meioTransporte}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-[#147A44] font-bold rounded-xl text-xs focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="Carro">🚗 Carro / Ambulância Pet (Vai até o local)</option>
+                      <option value="Moto">🏍️ Moto (Vet Express Rápido)</option>
+                      <option value="Carro e Moto">🚙🏍️ Carro e Moto (Ambos)</option>
+                      <option value="Nenhum">🏥 Nenhum (Atendimento exclusivo em Clínica Fixa)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">CEP do Endereço / Base</label>
                     <input
                       type="text"
                       name="cep"
@@ -243,9 +261,11 @@ function CadastroContent() {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Cidade</label>
+                    <label className="text-xs font-bold text-slate-700">Cidade Base</label>
                     <input
                       type="text"
                       name="cidade"
@@ -278,7 +298,7 @@ function CadastroContent() {
                       onChange={handleChange}
                       className="w-4 h-4 text-emerald-600 rounded-sm"
                     />
-                    <span>Realizo Atendimento Domiciliar</span>
+                    <span>Realizo Atendimento Domiciliar / Home Care</span>
                   </label>
                 </div>
               </div>
