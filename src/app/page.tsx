@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import VetCard from '@/components/VetCard';
 import HeroSearch from '@/components/HeroSearch';
 import VetMapExplorer from '@/components/VetMapExplorer';
+import HeroCenteredLogo from '@/components/HeroCenteredLogo';
 import { 
   ShieldCheck, 
   Search, 
@@ -112,9 +113,12 @@ export default async function HomePage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
-          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
+          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Logo Central com Efeito Scroll, Título, Subtítulo e Busca) */}
           <div className="text-center max-w-4xl mx-auto space-y-3 my-auto">
             
+            {/* LOGO CENTRALIZADO COM GLOW E EFEITO DE DESAPARECER AO ROLAR O MAPA */}
+            <HeroCenteredLogo />
+
             {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
             <div className="flex justify-center">
               <Link
