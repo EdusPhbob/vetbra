@@ -90,7 +90,6 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
   // Configurações padrão solicitadas: Google Ruas, Mapa Térmico ativo por padrão
   const [mapStyle, setMapStyle] = useState<'ruas' | 'satelite' | 'relevo'>('ruas'); // Google Ruas
   const [modoVisualizacao, setModoVisualizacao] = useState<'MARCADORES' | 'TERMAL'>('TERMAL'); // Mapa Térmico
-  const [mostrarAreas, setMostrarAreas] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Escuta evento customizado disparado pelo campo de busca/CEP ou GPS para centralizar instantaneamente
@@ -347,32 +346,9 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
         }
       }
 
-      // 3. Círculos e Áreas de Cobertura de Atendimento dos Vets
+      // 3. Círculos de Cobertura permanentemente ocultos
       if (coverageLayerRef.current) {
         coverageLayerRef.current.clearLayers();
-
-        if (mostrarAreas) {
-          vetsNoRaio.forEach((vet) => {
-            const isSelected = selectedVet?.id === vet.id;
-            const raioMetros = (vet.info.raioAtendimentoKm || 10) * 1000;
-
-            const circleArea = L.circle([vet.end.latitude, vet.end.longitude], {
-              radius: raioMetros,
-              color: vet.info.color,
-              fillColor: vet.info.color,
-              fillOpacity: isSelected ? 0.16 : 0.04,
-              weight: isSelected ? 2.5 : 1,
-              dashArray: isSelected ? '4, 4' : '3, 6'
-            }).addTo(coverageLayerRef.current);
-
-            if (isSelected) {
-              circleArea.bindTooltip(`Área de Cobertura: até ${vet.info.raioAtendimentoKm} km`, {
-                permanent: false,
-                direction: 'top'
-              });
-            }
-          });
-        }
       }
 
       // 4. Modo Mapa Térmico (Heatmap por Concentração e Densidade)
@@ -486,8 +462,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
     filtroModalidade, 
     vetsNoRaio.length, 
     selectedVet, 
-    modoVisualizacao, 
-    mostrarAreas
+    modoVisualizacao
   ]);
 
   const handleRecenterGps = () => {
