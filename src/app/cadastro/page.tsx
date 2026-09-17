@@ -29,6 +29,7 @@ function CadastroContent() {
     meioTransporte: 'Carro',
     atende24h: false,
     atendeDomiciliar: true,
+    tiposPets: ['Cães', 'Gatos', 'Outros'],
     plano: planoInicial.toUpperCase()
   });
 

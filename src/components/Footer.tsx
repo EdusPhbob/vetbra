@@ -70,14 +70,14 @@ export default function Footer() {
               <img
                 src="/logo-vetbra.jpg"
                 alt="VetBra Logo Oficial"
-                className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs"
+                className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-sm shrink-0"
               />
               <div className="flex flex-col">
-                <span className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                <span className="text-2xl font-black text-slate-900 tracking-tight leading-none">
                   Vet<span className="text-[#147A44]">Bra</span>
                 </span>
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
-                  Veterinária Mais Perto
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                  Veterinária Mais Perto De Você
                 </span>
               </div>
             </div>

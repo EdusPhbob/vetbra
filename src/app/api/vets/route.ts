@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const especialidade = searchParams.get('especialidade');
     const atende24h = searchParams.get('atende24h') === 'true';
     const atendeDomiciliar = searchParams.get('domiciliar') === 'true';
+    const tipoPet = searchParams.get('tipoPet');
     const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined;
     const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
     const q = searchParams.get('q');
@@ -28,6 +29,12 @@ export async function GET(request: Request) {
 
     if (atendeDomiciliar) {
       where.atendeDomiciliar = true;
+    }
+
+    if (tipoPet && tipoPet !== 'Todos') {
+      where.tiposPets = {
+        hasSome: [tipoPet, 'Todos', 'Outros']
+      };
     }
 
     if (estado && estado !== 'Todos') {

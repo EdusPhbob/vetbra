@@ -310,6 +310,15 @@ export default async function VetProfilePage({ params }: Props) {
                   <span className="font-bold text-slate-800">{vet.atendeDomiciliar ? 'Sim' : 'Não'}</span>
                 </div>
 
+                {vet.atendeDomiciliar && (
+                  <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                    <span>Raio de Atendimento:</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      até {endereco.raioKmAtendimento || 15} km ({vet.meioTransporte || 'Carro'})
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between py-1 border-b border-slate-100">
                   <span>Animais Atendidos:</span>
                   <span className="font-bold text-slate-800">{vet.tiposPets.join(', ')}</span>

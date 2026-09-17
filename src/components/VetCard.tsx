@@ -120,9 +120,16 @@ export default function VetCard({ vet, isCompared, onToggleCompare }: VetCardPro
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 truncate text-[11px] text-slate-400">
-            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{vet.horarioFuncionamento || 'Seg a Sex 08h às 18h'}</span>
+          <div className="flex items-center justify-between gap-1.5 truncate text-[11px] text-slate-400">
+            <div className="flex items-center gap-1.5 truncate">
+              <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">{vet.horarioFuncionamento || 'Seg a Sex 08h às 18h'}</span>
+            </div>
+            {vet.atendeDomiciliar && (
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px] shrink-0">
+                Raio: {enderecoPrincipal.raioKmAtendimento || 15} km
+              </span>
+            )}
           </div>
         </div>
       </div>

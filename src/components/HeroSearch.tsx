@@ -179,6 +179,7 @@ export default function HeroSearch() {
             <option value="Roedores">Roedores 🐹</option>
             <option value="Repteis">Répteis 🦎</option>
             <option value="Equinos">Equinos 🐴</option>
+            <option value="Outros">Outros Pets 🐾</option>
           </select>
         </div>
 
@@ -207,10 +208,7 @@ export default function HeroSearch() {
 
         {/* Campo Localização / CEP */}
         <div className="space-y-1 px-3 py-1 lg:border-l border-slate-200 relative">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              CEP ou Cidade
-            </label>
+          <div className="flex items-center justify-between min-h-[16px]">
             <button
               type="button"
               onClick={handleDetectLocation}
@@ -232,8 +230,8 @@ export default function HeroSearch() {
               type="text"
               value={localizacao}
               onChange={handleLocationChange}
-              placeholder="Ex: 01424-001 ou SP"
-              className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden placeholder:text-slate-400"
+              placeholder="Digite o CEP ou Cidade..."
+              className="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-hidden placeholder:text-slate-400/90 placeholder:italic"
             />
             {cepLoading && (
               <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin shrink-0" />
@@ -260,20 +258,6 @@ export default function HeroSearch() {
           <span>{locationStatus}</span>
         </div>
       )}
-
-      {/* FILTROS RÁPIDOS ABAIXO DA BUSCA */}
-      <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs font-semibold text-slate-500">
-        <span className="text-slate-400">Atalhos:</span>
-        <Link href="/buscar?atende24h=true" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 transition-colors flex items-center gap-1">
-          <Clock className="w-3 h-3 text-rose-500" /> Plantão 24 Horas
-        </Link>
-        <Link href="/buscar?domiciliar=true" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center gap-1">
-          <Home className="w-3 h-3 text-blue-500" /> Atendimento Domiciliar
-        </Link>
-        <Link href="/buscar?especialidade=Dermatologia" className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-emerald-300 hover:text-emerald-700 transition-colors">
-          Dermatologia Pet
-        </Link>
-      </div>
 
     </div>
   );

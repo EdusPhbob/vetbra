@@ -10,23 +10,23 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-24">
           
           {/* Logo VetBra Oficial (Formato Quadrado) */}
           <Link href="/" className="flex items-center gap-3 group">
             <img
               src="/logo-vetbra.jpg"
               alt="VetBra Logo Oficial"
-              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm group-hover:scale-105 transition-transform"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200 shadow-md group-hover:scale-105 transition-transform shrink-0"
             />
             <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-black tracking-tight text-slate-900">Vet<span className="text-[#147A44]">Bra</span></span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-[#147A44] border border-emerald-200">
-                  <ShieldCheck className="w-2.5 h-2.5 mr-0.5" /> Oficial
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">Vet<span className="text-[#147A44]">Bra</span></span>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-[#147A44] border border-emerald-200">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Oficial
                 </span>
               </div>
-              <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase -mt-0.5">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 tracking-wider uppercase -mt-0.5">
                 Veterinária Mais Perto De Você
               </span>
             </div>
