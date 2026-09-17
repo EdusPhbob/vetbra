@@ -200,9 +200,11 @@ model Veterinario {
   site                  String?
 
   // Métricas de Desempenho & Destaque
-  destaqueBusca         Boolean           @default(false)
-  visualizacoesCount    Int               @default(0)
-  contatosWhatsappCount Int               @default(0)
+  destaqueBusca                Boolean           @default(false)
+  visualizacoesCount           Int               @default(0)
+  contatosWhatsappCount        Int               @default(0)
+  atendimentosDeclaradosCount  Int               @default(0)
+  atendimentosConfirmadosCount Int               @default(0)
 
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
@@ -216,6 +218,7 @@ model Veterinario {
   avaliacoes            Avaliacao[]
   assinaturas           Assinatura[]
   cliquesWhatsapp       CliqueWhatsappLog[]
+  atendimentosLeads     AtendimentoLead[]
   artigos               Artigo[]
 
   @@unique([crmvNumero, crmvUf])
@@ -523,4 +526,63 @@ model Artigo {
 
   @@index([veterinarioId])
   @@index([categoria])
+}
+
+// -------------------------------------------------------------
+// MÓDULO 7: AUDITORIA GLOBAL & CONVERSÃO DE ATENDIMENTOS (WHATSAPP)
+// -------------------------------------------------------------
+
+model AuditoriaLog {
+  id              String    @id @default(uuid())
+  entidade        String    // VETERINARIO, ASSINATURA, FATURA, DOCUMENTO, USUARIO, SISTEMA
+  registroId      String    // ID do registro afetado
+  acao            String    // CRIACAO, EDICAO, APROVACAO, REJEICAO, SUSPENSAO, CANCELAMENTO, ESTORNO
+  autorId         String?   // ID do usuário ou "SISTEMA"
+  autorEmail      String?
+  autorRole       Role?
+  dadosAnteriores Json?
+  dadosNovos      Json?
+  justificativa   String?   @db.Text
+  ip              String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+
+  @@index([entidade, registroId])
+  @@index([autorEmail])
+  @@index([createdAt])
+}
+
+enum AtendimentoStatus {
+  LEAD_GERADO           // Clique no WhatsApp
+  DECLARADO_VET         // Veterinário informou que realizou o atendimento
+  CONFIRMADO_TUTOR      // Tutor confirmou que o atendimento aconteceu
+  AVALIADO              // Tutor deu nota e avaliação
+  CANCELADO_OU_RECUSADO // Não houve fechamento
+}
+
+model AtendimentoLead {
+  id                 String            @id @default(uuid())
+  veterinarioId      String
+  veterinario        Veterinario       @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  origem             String            @default("WHATSAPP")
+  nomeTutor          String?
+  telefoneHash       String?           // SHA-256 para evitar spam e respeitar LGPD
+  procedimentoNome   String?
+  valorCobrado       Decimal?          @db.Decimal(10, 2)
+
+  status             AtendimentoStatus @default(LEAD_GERADO)
+  declaradoEm        DateTime?
+  confirmadoEm       DateTime?
+
+  notaAvaliacao      Int?              // 1 a 5 estrelas
+  comentarioTutor    String?           @db.Text
+
+  ipAnonimizado      String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([veterinarioId])
+  @@index([status])
+  @@index([createdAt])
 }

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       }
     });
 
-    // Registra o log de auditoria
+    // Registra o log de auditoria especializado de CRMV
     await prisma.crmvAuditoriaLog.create({
       data: {
         veterinarioId,
@@ -56,6 +56,19 @@ export async function POST(request: Request) {
         statusNovo: novoStatus as CrmvStatus,
         motivo: notas || 'Auditoria de regularidade no CFMV/CRMV'
       }
+    });
+
+    // Registra na Trilha de Auditoria Global do SaaS
+    const { registrarAuditoria } = await import('@/lib/audit');
+    await registrarAuditoria({
+      entidade: 'DOCUMENTO',
+      registroId: veterinarioId,
+      acao: isAprovado ? 'APROVACAO' : (novoStatus === CrmvStatus.REJEITADO ? 'REJEICAO' : 'EDICAO'),
+      autorEmail: adminEmail,
+      autorRole: 'ADMIN',
+      dadosAnteriores: { crmvStatus: statusAnterior, statusGeral: vetAtual.statusGeral },
+      dadosNovos: { crmvStatus: novoStatus, statusGeral: vetAtualizado.statusGeral, crmvValidade: vetAtualizado.crmvValidade },
+      justificativa: notas || 'Auditoria de regularidade no CFMV/CRMV',
     });
 
     return NextResponse.json({

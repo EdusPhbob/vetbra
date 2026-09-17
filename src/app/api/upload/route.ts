@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import crypto from 'crypto';
+import { uploadFile } from '@/lib/storage';
 
 export async function POST(request: Request) {
   try {
@@ -31,30 +30,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // Pasta de destino segura
-    const targetFolder = folderType === 'perfis' ? 'perfis' : 'crmv';
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', targetFolder);
-    await mkdir(uploadDir, { recursive: true });
-
-    // Nome único
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const cleanExt = ext.replace(/[^a-z0-9]/g, '');
     const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${cleanExt}`;
-    const filePath = path.join(uploadDir, filename);
 
-    await writeFile(filePath, buffer);
+    const isPrivate = folderType === 'crmv'; // CRMV e Selfies são estritamente privados
+    const folder = folderType === 'perfis' ? 'perfis' : 'crmv';
 
-    const publicUrl = `/uploads/${targetFolder}/${filename}`;
+    const result = await uploadFile({
+      buffer,
+      filename,
+      contentType: file.type,
+      folder,
+      isPrivate,
+    });
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
+      url: result.url,
+      key: result.key,
+      isS3: result.isS3,
+      isPrivate: result.isPrivate,
       filename,
       size: file.size,
-      type: file.type
+      type: file.type,
     });
   } catch (error: any) {
     console.error('Erro no upload de arquivo:', error);
