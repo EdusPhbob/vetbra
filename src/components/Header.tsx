@@ -21,19 +21,19 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? 'py-2 sm:py-2.5' : 'py-3 sm:py-4'}`}>
           
-          {/* Logo VetBra Oficial (Dobro do tamanho no topo, esconde ao rolar a página) */}
+          {/* Logo VetBra Oficial (Tamanho super ampliado no topo, esconde ao rolar a página) */}
           <Link 
             href="/" 
             className={`flex items-center transition-all duration-300 transform origin-left ${
               isScrolled 
                 ? 'w-0 h-0 opacity-0 scale-75 pointer-events-none overflow-hidden mr-0' 
-                : 'w-24 h-24 sm:w-32 sm:h-32 opacity-100 scale-100 mr-4'
+                : 'w-36 h-36 sm:w-48 sm:h-48 lg:w-56 lg:h-56 opacity-100 scale-100 mr-4 sm:mr-6'
             }`}
           >
             <img
               src="/logo-vetbra.jpg"
               alt="VetBra Logo Oficial"
-              className="w-full h-full rounded-3xl object-cover border-2 border-white/40 shadow-xl group-hover:scale-105 transition-transform shrink-0"
+              className="w-full h-full rounded-3xl object-cover border-4 border-white/50 shadow-2xl group-hover:scale-105 transition-transform shrink-0"
             />
           </Link>
 
