@@ -96,16 +96,16 @@ export default async function HomePage() {
       <Header />
 
       {/* HERO SECTION PRINCIPAL (COM LAYOUT FLUIDO E ESPAÇAMENTO NATURAL) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white py-12 sm:py-16 border-b border-slate-200">
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white py-6 sm:py-10 lg:py-12 border-b border-slate-200">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full space-y-10 sm:space-y-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full space-y-6 sm:space-y-8">
           
           {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
-          <div className="text-center max-w-4xl mx-auto space-y-5">
+          <div className="text-center max-w-4xl mx-auto space-y-4">
             
             {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
-            <div className="flex justify-center pb-1">
+            <div className="flex justify-center pb-0.5">
               <Link
                 href="/cadastro"
                 className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all hover:scale-[1.03] group relative overflow-hidden"
@@ -120,11 +120,11 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
               Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
+            <p className="text-sm sm:text-base lg:text-lg text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
               A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
             </p>
 
@@ -134,7 +134,7 @@ export default async function HomePage() {
           </div>
 
           {/* CARDS DE ESTATÍSTICAS (SEÇÃO INTEGRADA SEM ESPAÇOS ESTRANHOS) */}
-          <div className="max-w-7xl mx-auto w-full pt-2">
+          <div className="max-w-7xl mx-auto w-full pt-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               
               {/* Card 1: Vets Cadastrados */}
