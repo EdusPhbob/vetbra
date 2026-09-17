@@ -13,6 +13,7 @@ import {
   MetodoPagamento, 
   ProcedimentoCategoria 
 } from '@prisma/client';
+import { geocodeAddress } from '@/lib/geocoding';
 
 export async function POST(request: Request) {
   try {
@@ -151,6 +152,23 @@ export async function POST(request: Request) {
       dataValidadeCrmv = new Date(crmvValidade);
     }
 
+    // Coordenadas automáticas do endereço principal
+    let latFinal = latitude ? parseFloat(latitude) : null;
+    let lngFinal = longitude ? parseFloat(longitude) : null;
+
+    if (!latFinal || !lngFinal) {
+      const geo = await geocodeAddress({
+        logradouro,
+        numero: String(numero || ''),
+        bairro,
+        cidade: cidade || cidadeBase,
+        estado: estado || estadoBase,
+        cep
+      });
+      latFinal = geo.latitude;
+      lngFinal = geo.longitude;
+    }
+
     // Lista de endereços
     const enderecosData: any[] = [
       {
@@ -162,13 +180,29 @@ export async function POST(request: Request) {
         bairro: bairro || 'Centro',
         cidade: cidade || cidadeBase || 'São Paulo',
         estado: estado || estadoBase || 'SP',
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
+        latitude: latFinal,
+        longitude: lngFinal,
         raioKmAtendimento: parseInt(String(raioAtendimentoKm)) || 15
       }
     ];
 
     if (temSegundoEndereco && segundoEndereco?.cep && segundoEndereco?.numero) {
+      let lat2 = segundoEndereco.latitude ? parseFloat(segundoEndereco.latitude) : null;
+      let lng2 = segundoEndereco.longitude ? parseFloat(segundoEndereco.longitude) : null;
+
+      if (!lat2 || !lng2) {
+        const geo2 = await geocodeAddress({
+          logradouro: segundoEndereco.logradouro,
+          numero: String(segundoEndereco.numero),
+          bairro: segundoEndereco.bairro,
+          cidade: segundoEndereco.cidade || cidade,
+          estado: segundoEndereco.estado || estado,
+          cep: segundoEndereco.cep
+        });
+        lat2 = geo2.latitude;
+        lng2 = geo2.longitude;
+      }
+
       enderecosData.push({
         tipoEndereco: 'FILIAL',
         cep: segundoEndereco.cep,
@@ -178,8 +212,8 @@ export async function POST(request: Request) {
         bairro: segundoEndereco.bairro || 'Bairro',
         cidade: segundoEndereco.cidade || cidade || 'São Paulo',
         estado: segundoEndereco.estado || estado || 'SP',
-        latitude: segundoEndereco.latitude ? parseFloat(segundoEndereco.latitude) : null,
-        longitude: segundoEndereco.longitude ? parseFloat(segundoEndereco.longitude) : null,
+        latitude: lat2,
+        longitude: lng2,
         raioKmAtendimento: parseInt(String(segundoEndereco.raioKmAtendimento || raioAtendimentoKm)) || 15
       });
     }

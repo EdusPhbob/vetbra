@@ -19,7 +19,7 @@ export default function VetCard({ vet, isCompared, onToggleCompare }: VetCardPro
   const totalReviews = vet.avaliacoes?.length || 0;
   const mediaNota = totalReviews > 0
     ? (vet.avaliacoes.reduce((acc: number, item: any) => acc + item.nota, 0) / totalReviews).toFixed(1)
-    : '5.0';
+    : null;
 
   const whatsappMessage = encodeURIComponent(
     `Olá Dr(a). ${vet.nomeCompleto}, encontrei seu perfil no portal VetBra e gostaria de tirar uma dúvida sobre atendimento.`
@@ -82,14 +82,21 @@ export default function VetCard({ vet, isCompared, onToggleCompare }: VetCardPro
               </p>
             )}
 
-            <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-600">
-              <div className="flex items-center text-amber-500 font-bold">
-                <Star className="w-3.5 h-3.5 fill-amber-400 mr-0.5" />
-                <span>{mediaNota}</span>
+            {totalReviews > 0 ? (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-600">
+                <div className="flex items-center text-amber-500 font-bold">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 mr-0.5" />
+                  <span>{mediaNota}</span>
+                </div>
+                <span className="text-slate-300">•</span>
+                <span className="text-[11px] text-slate-400">({totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'})</span>
               </div>
-              <span className="text-slate-300">•</span>
-              <span className="text-[11px] text-slate-400">({totalReviews} avaliações)</span>
-            </div>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400 font-medium">
+                <Star className="w-3.5 h-3.5 text-slate-300 mr-0.5" />
+                <span className="text-[11px]">Novo perfil (Sem avaliações)</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { formatCrmv, checkCrmvValidity } from '@/lib/crmv';
 import WhatsAppContactButton from '@/components/WhatsAppContactButton';
+import AvaliacaoFormModal from '@/components/AvaliacaoFormModal';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -57,7 +58,10 @@ export default async function VetProfilePage({ params }: Props) {
       enderecos: true,
       especialidades: { include: { especialidade: true } },
       procedimentos: { where: { ativo: true }, orderBy: { categoria: 'asc' } },
-      avaliacoes: { orderBy: { createdAt: 'desc' } }
+      avaliacoes: { 
+        where: { status: { not: 'REJEITADA' } },
+        orderBy: { createdAt: 'desc' } 
+      }
     }
   });
 
@@ -75,7 +79,7 @@ export default async function VetProfilePage({ params }: Props) {
   const totalReviews = vet.avaliacoes.length;
   const mediaNota = totalReviews > 0
     ? (vet.avaliacoes.reduce((acc, item) => acc + item.nota, 0) / totalReviews).toFixed(1)
-    : '5.0';
+    : null;
 
   const whatsappMessage = encodeURIComponent(
     `Olá Dr(a). ${vet.nomeCompleto}, vi seu perfil no portal VetBra e gostaria de consultar horários para atendimento do meu pet.`
@@ -151,10 +155,17 @@ export default async function VetProfilePage({ params }: Props) {
                   )}
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 pt-1">
-                    <span className="flex items-center text-amber-500 font-bold">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 mr-1" />
-                      {mediaNota} ({totalReviews} avaliações)
-                    </span>
+                    {totalReviews > 0 ? (
+                      <span className="flex items-center text-amber-500 font-bold">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 mr-1" />
+                        {mediaNota} ({totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'})
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-slate-400 font-medium">
+                        <Star className="w-3.5 h-3.5 text-slate-300 mr-1" />
+                        Novo no portal (Sem avaliações)
+                      </span>
+                    )}
                     <span>•</span>
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -243,23 +254,75 @@ export default async function VetProfilePage({ params }: Props) {
             </div>
 
             {/* AVALIAÇÕES */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-              <h2 className="text-lg font-bold text-slate-900">Avaliações de Tutores</h2>
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span>Avaliações de Tutores</span>
+                    {totalReviews > 0 && (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold">
+                        ★ {mediaNota}
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Depoimentos reais de consultas e procedimentos auditados.
+                  </p>
+                </div>
+
+                {/* Botão para abrir modal de avaliação */}
+                <AvaliacaoFormModal
+                  veterinarioId={vet.id}
+                  veterinarioNome={vet.nomeCompleto}
+                />
+              </div>
+
               {vet.avaliacoes.length === 0 ? (
-                <p className="text-xs text-slate-400">Nenhuma avaliação publicada ainda.</p>
+                <div className="text-center py-10 px-4 space-y-3 bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mx-auto border border-amber-200">
+                    <Star className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-slate-700">Ainda não há avaliações para este profissional.</p>
+                    <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                      Já teve uma consulta ou atendimento com {vet.nomeCompleto}? Seja o primeiro a compartilhar sua experiência e ajudar outros tutores!
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {vet.avaliacoes.map((av) => (
-                    <div key={av.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800">{av.nomeTutor}</span>
-                        <div className="flex text-amber-500">
-                          {[...Array(av.nota)].map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-                          ))}
+                    <div key={av.id} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 block">{av.nomeTutor}</span>
+                          {(av.dataAtendimento || av.horaAtendimento) && (
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              Atendimento: {av.dataAtendimento ? new Date(av.dataAtendimento).toLocaleDateString('pt-BR') : ''}
+                              {av.horaAtendimento ? ` às ${av.horaAtendimento}` : ''}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex text-amber-500">
+                            {[...Array(av.nota)].map((_, i) => (
+                              <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
+                            ))}
+                            {[...Array(Math.max(0, 5 - av.nota))].map((_, i) => (
+                              <Star key={i} className="w-3.5 h-3.5 text-slate-200" />
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-amber-900 bg-amber-100/60 px-2 py-0.5 rounded-md">
+                            {av.nota}.0
+                          </span>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed font-normal">{av.comentario}</p>
+
+                      <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-line">
+                        {av.comentario}
+                      </p>
                     </div>
                   ))}
                 </div>
