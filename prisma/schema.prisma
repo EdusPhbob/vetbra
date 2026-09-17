@@ -656,10 +656,22 @@ model ConfiguracaoPagamento {
   pixCidade             String?   @default("São Paulo")
   pixInstrucoes         String?   @db.Text // Orientações para o veterinário pagar e enviar comprovante
 
+  // Boleto: parcelamento e juros
+  boletoMaxParcelas     Int       @default(1)  // Máximo de parcelas no boleto (1 = apenas à vista)
+  boletoJurosAoMes     Float     @default(0)  // % de juros ao mês repassado ao veterinário (boleto parcelado)
+
+  // Cartão de Crédito: parcelamento e juros
+  cartaoMaxParcelas     Int       @default(12) // Máximo de parcelas no cartão
+  cartaoParcelasSemJuros Int      @default(1)  // Parcelas sem juros (até N x sem juros)
+  cartaoJurosAoMes     Float     @default(2.99) // % de juros ao mês a partir de cartaoParcelasSemJuros+1
+
   // Descontos ou Políticas
   descontoPixPercentual Float     @default(0)
   diasVencimentoBoleto  Int       @default(3)
   diasTrialPadrao       Int       @default(7)
+
+  // Instruções para cadastro de conta no gateway (visível apenas para admin)
+  instrucoesCadastroConta String? @db.Text
 
   updatedAt             DateTime  @updatedAt
   updatedBy             String?

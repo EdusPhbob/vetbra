@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { registrarAuditoria } from '@/lib/audit';
@@ -65,7 +65,13 @@ export async function PUT(request: Request) {
       pixInstrucoes,
       descontoPixPercentual,
       diasVencimentoBoleto,
-      diasTrialPadrao
+      diasTrialPadrao,
+      boletoMaxParcelas,
+      boletoJurosAoMes,
+      cartaoMaxParcelas,
+      cartaoParcelasSemJuros,
+      cartaoJurosAoMes,
+      instrucoesCadastroConta
     } = body;
 
     const anterior = await prisma.configuracaoPagamento.findUnique({
@@ -89,6 +95,12 @@ export async function PUT(request: Request) {
         descontoPixPercentual: Number(descontoPixPercentual || 0),
         diasVencimentoBoleto: Number(diasVencimentoBoleto || 3),
         diasTrialPadrao: Number(diasTrialPadrao || 7),
+        boletoMaxParcelas: Number(boletoMaxParcelas || 1),
+        boletoJurosAoMes: Number(boletoJurosAoMes || 0),
+        cartaoMaxParcelas: Number(cartaoMaxParcelas || 12),
+        cartaoParcelasSemJuros: Number(cartaoParcelasSemJuros || 1),
+        cartaoJurosAoMes: Number(cartaoJurosAoMes || 2.99),
+        instrucoesCadastroConta: instrucoesCadastroConta?.trim() || null,
         updatedBy: adminEmail
       },
       update: {
@@ -105,6 +117,12 @@ export async function PUT(request: Request) {
         descontoPixPercentual: descontoPixPercentual !== undefined ? Number(descontoPixPercentual) : undefined,
         diasVencimentoBoleto: diasVencimentoBoleto !== undefined ? Number(diasVencimentoBoleto) : undefined,
         diasTrialPadrao: diasTrialPadrao !== undefined ? Number(diasTrialPadrao) : undefined,
+        boletoMaxParcelas: boletoMaxParcelas !== undefined ? Number(boletoMaxParcelas) : undefined,
+        boletoJurosAoMes: boletoJurosAoMes !== undefined ? Number(boletoJurosAoMes) : undefined,
+        cartaoMaxParcelas: cartaoMaxParcelas !== undefined ? Number(cartaoMaxParcelas) : undefined,
+        cartaoParcelasSemJuros: cartaoParcelasSemJuros !== undefined ? Number(cartaoParcelasSemJuros) : undefined,
+        cartaoJurosAoMes: cartaoJurosAoMes !== undefined ? Number(cartaoJurosAoMes) : undefined,
+        instrucoesCadastroConta: instrucoesCadastroConta !== undefined ? String(instrucoesCadastroConta).trim() : undefined,
         updatedBy: adminEmail
       }
     });

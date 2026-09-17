@@ -68,7 +68,13 @@ export default function AdminCrmvModerationPage() {
     pixInstrucoes: '',
     descontoPixPercentual: 0,
     diasVencimentoBoleto: 3,
-    diasTrialPadrao: 7
+    diasTrialPadrao: 7,
+    boletoMaxParcelas: 1,
+    boletoJurosAoMes: 0,
+    cartaoMaxParcelas: 12,
+    cartaoParcelasSemJuros: 1,
+    cartaoJurosAoMes: 2.99,
+    instrucoesCadastroConta: ''
   });
   const [loadingPagamentosConfig, setLoadingPagamentosConfig] = useState(false);
   const [savingPagamentosConfig, setSavingPagamentosConfig] = useState(false);
@@ -2346,6 +2352,186 @@ export default function AdminCrmvModerationPage() {
                         <span className="text-xs font-bold text-slate-600 shrink-0">% de desconto</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* SEÇÃO 4: PARCELAMENTO & JUROS — BOLETO */}
+                  <div className="p-5 sm:p-6 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-4">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" /> 4. Parcelamento — Boleto Bancário
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Configure quantas parcelas o boleto aceita. Se &gt; 1x, defina os juros ao mês repassados ao veterinário. <strong>1x = apenas à vista</strong>.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Máximo de Parcelas (Boleto)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={pagamentosConfig.boletoMaxParcelas || 1}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, boletoMaxParcelas: parseInt(e.target.value) || 1 })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                          />
+                          <span className="text-xs font-bold text-slate-600 shrink-0">
+                            {pagamentosConfig.boletoMaxParcelas <= 1 ? 'x (à vista)' : 'x máx.'}
+                          </span>
+                        </div>
+                        {pagamentosConfig.boletoMaxParcelas > 1 && (
+                          <p className="text-[10px] text-blue-600 font-semibold">Boleto parcelado habilitado até {pagamentosConfig.boletoMaxParcelas}x</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Taxa de Juros ao Mês (Boleto Parcelado)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="0.1"
+                            disabled={pagamentosConfig.boletoMaxParcelas <= 1}
+                            value={pagamentosConfig.boletoJurosAoMes || 0}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, boletoJurosAoMes: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden disabled:opacity-40"
+                          />
+                          <span className="text-xs font-bold text-slate-600 shrink-0">% a.m.</span>
+                        </div>
+                        {pagamentosConfig.boletoMaxParcelas > 1 && pagamentosConfig.boletoJurosAoMes > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-[10px] font-bold text-blue-700">Prévia das parcelas:</p>
+                            {Array.from({ length: Math.min(pagamentosConfig.boletoMaxParcelas, 6) }, (_, i) => i + 2).map(n => {
+                              const valorBase = 100;
+                              const juros = pagamentosConfig.boletoJurosAoMes / 100;
+                              const totalComJuros = valorBase * Math.pow(1 + juros, n - 1);
+                              const parcela = totalComJuros / n;
+                              return (
+                                <p key={n} className="text-[10px] text-slate-600">
+                                  {n}x = R$ {parcela.toFixed(2).replace('.', ',')} <span className="text-slate-400">(total R$ {totalComJuros.toFixed(2).replace('.', ',')})</span>
+                                </p>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SEÇÃO 5: PARCELAMENTO & JUROS — CARTÃO */}
+                  <div className="p-5 sm:p-6 rounded-2xl bg-purple-50/60 border border-purple-200 space-y-4">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-purple-600" /> 5. Parcelamento — Cartão de Crédito
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Defina o máximo de parcelas, quantas são sem juros e a taxa aplicada a partir da parcela seguinte.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Máximo de Parcelas</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={pagamentosConfig.cartaoMaxParcelas || 12}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, cartaoMaxParcelas: parseInt(e.target.value) || 12 })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                          />
+                          <span className="text-xs font-bold text-slate-600 shrink-0">x máx.</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Parcelas Sem Juros</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={pagamentosConfig.cartaoMaxParcelas || 12}
+                            value={pagamentosConfig.cartaoParcelasSemJuros || 1}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, cartaoParcelasSemJuros: parseInt(e.target.value) || 1 })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                          />
+                          <span className="text-xs font-bold text-emerald-700 shrink-0">x s/juros</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Juros a partir da {(pagamentosConfig.cartaoParcelasSemJuros || 1) + 1}ª parcela</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="0.01"
+                            value={pagamentosConfig.cartaoJurosAoMes || 2.99}
+                            onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, cartaoJurosAoMes: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                          />
+                          <span className="text-xs font-bold text-slate-600 shrink-0">% a.m.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Prévia da tabela de parcelamento */}
+                    {pagamentosConfig.cartaoMaxParcelas > 1 && (
+                      <div className="overflow-x-auto">
+                        <p className="text-[10px] font-bold text-purple-700 mb-2">Prévia da tabela de parcelamento (para R$ 100,00):</p>
+                        <table className="w-full text-[10px] text-left">
+                          <thead>
+                            <tr className="border-b border-purple-200 text-purple-600 font-bold uppercase">
+                              <th className="py-1.5 px-2">Parcelas</th>
+                              <th className="py-1.5 px-2">Juros</th>
+                              <th className="py-1.5 px-2">Valor/Parcela</th>
+                              <th className="py-1.5 px-2">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Array.from({ length: pagamentosConfig.cartaoMaxParcelas }, (_, i) => i + 1).map(n => {
+                              const semJuros = n <= (pagamentosConfig.cartaoParcelasSemJuros || 1);
+                              const taxa = semJuros ? 0 : (pagamentosConfig.cartaoJurosAoMes || 2.99) / 100;
+                              const totalComJuros = semJuros ? 100 : 100 * Math.pow(1 + taxa, n - (pagamentosConfig.cartaoParcelasSemJuros || 1));
+                              const parcela = totalComJuros / n;
+                              return (
+                                <tr key={n} className={`border-b border-purple-100 ${semJuros ? 'bg-emerald-50/40' : 'bg-white'}`}>
+                                  <td className="py-1.5 px-2 font-bold text-slate-800">{n}x</td>
+                                  <td className="py-1.5 px-2">
+                                    {semJuros
+                                      ? <span className="text-emerald-700 font-bold">Sem juros</span>
+                                      : <span className="text-rose-600 font-bold">{pagamentosConfig.cartaoJurosAoMes}% a.m.</span>
+                                    }
+                                  </td>
+                                  <td className="py-1.5 px-2 font-semibold text-slate-800">R$ {parcela.toFixed(2).replace('.', ',')}</td>
+                                  <td className="py-1.5 px-2 text-slate-500">R$ {totalComJuros.toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SEÇÃO 6: INSTRUÇÕES DE CADASTRO DE CONTA NO GATEWAY */}
+                  <div className="p-5 sm:p-6 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" /> 6. Como Cadastrar a Conta no Gateway (Uso Interno)
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Campo interno — visível apenas para administradores. Descreva aqui o passo a passo para configurar a conta Asaas / gateway, chave de API, conta bancária, etc.
+                      Este texto <strong>não</strong> aparece para os veterinários.
+                    </p>
+                    <textarea
+                      rows={6}
+                      value={pagamentosConfig.instrucoesCadastroConta || ''}
+                      onChange={(e) => setPagamentosConfig({ ...pagamentosConfig, instrucoesCadastroConta: e.target.value })}
+                      placeholder={`Exemplo:\n1. Acesse app.asaas.com e crie uma conta empresa\n2. Vá em Integrações → API Key e copie a chave\n3. Cole a chave no campo ASAAS_API_KEY no .env do servidor\n4. Configure a conta bancária em Configurações → Dados Bancários\n5. Teste com um pagamento de R$ 1,00 em modo Sandbox\n6. Após homologação, troque ambienteGateway para PRODUCAO`}
+                      className="w-full px-3 py-2.5 bg-white border border-amber-200 rounded-xl text-xs font-normal focus:outline-hidden focus:border-amber-400 resize-none leading-relaxed"
+                    />
+                    <p className="text-[10px] text-amber-700 font-semibold flex items-center gap-1">
+                      🔒 Este campo é privado — salvo apenas no banco de dados, nunca exposto ao veterinário.
+                    </p>
                   </div>
 
                   <div className="flex justify-end pt-4 border-t border-slate-100">
