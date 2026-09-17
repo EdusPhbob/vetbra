@@ -6,7 +6,7 @@ import Footer from '@/components/Footer';
 import VetCard from '@/components/VetCard';
 import HeroSearch from '@/components/HeroSearch';
 import VetMapExplorer from '@/components/VetMapExplorer';
-import HeroIntroCover from '@/components/HeroIntroCover';
+import HeroTransitionCover from '@/components/HeroTransitionCover';
 import { 
   ShieldCheck, 
   Search, 
@@ -96,15 +96,8 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Header />
 
-      {/* 1ª TELA: IMAGEM WIDESCREEN 100% LIMPA COM APENAS O BOTÃO 'ROLE PARA BAIXO' */}
-      <HeroIntroCover />
-
-      {/* 2ª TELA: TELA COMPLETA DE BUSCA (PILL, TÍTULO, SUBTÍTULO, BUSCA E 4 CARDS - SEM IMAGEM ATRÁS) */}
-      <section id="busca-hero" className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] flex flex-col justify-between py-6 sm:py-8 border-b border-slate-200">
-        
-        {/* BACKGROUND GRID SUAVE */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-
+      {/* TELA HERO: CAPA WIDESCREEN TOTALMENTE CENTRALIZADA COM TRANSIÇÃO DISSOLVE PARA A TELA DE BUSCA */}
+      <HeroTransitionCover>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
           {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
@@ -230,7 +223,7 @@ export default async function HomePage() {
           </div>
 
         </div>
-      </section>
+      </HeroTransitionCover>
 
       {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E DESLOCAMENTO SUAVE */}
       <VetMapExplorer vets={todosVets} />
