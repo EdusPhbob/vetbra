@@ -1,27 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Stethoscope, Search, ShieldCheck, User, Menu, X } from 'lucide-react';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 30);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-[#147A44] shadow-lg border-b border-emerald-800/80 transition-all">
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-[#147A44] via-[#16807B] to-[#1B85B8] shadow-lg border-b border-emerald-800/60 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-2.5 sm:py-3">
+        <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? 'py-2 sm:py-2.5' : 'py-3 sm:py-4'}`}>
           
-          {/* Logo VetBra Oficial (Apenas a imagem grande do logo, sem texto) */}
-          <Link href="/" className="flex items-center group">
+          {/* Logo VetBra Oficial (Dobro do tamanho no topo, esconde ao rolar a página) */}
+          <Link 
+            href="/" 
+            className={`flex items-center transition-all duration-300 transform origin-left ${
+              isScrolled 
+                ? 'w-0 h-0 opacity-0 scale-75 pointer-events-none overflow-hidden mr-0' 
+                : 'w-24 h-24 sm:w-32 sm:h-32 opacity-100 scale-100 mr-4'
+            }`}
+          >
             <img
               src="/logo-vetbra.jpg"
               alt="VetBra Logo Oficial"
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white/30 shadow-md group-hover:scale-105 transition-transform shrink-0"
+              className="w-full h-full rounded-3xl object-cover border-2 border-white/40 shadow-xl group-hover:scale-105 transition-transform shrink-0"
             />
           </Link>
 
-          {/* Desktop Nav (Letras Brancas) */}
+          {/* Desktop Nav (Letras Brancas - Mantidas no topo e na rolagem) */}
           <nav className="hidden md:flex items-center gap-8">
             <Link 
               href="/buscar" 
@@ -43,7 +59,7 @@ export default function Header() {
             </Link>
             <Link 
               href="/admin" 
-              className="text-xs font-bold text-emerald-200/80 hover:text-white transition-colors uppercase tracking-wider"
+              className="text-xs font-bold text-emerald-200/90 hover:text-white transition-colors uppercase tracking-wider"
             >
               Moderação CRMV
             </Link>
@@ -69,7 +85,7 @@ export default function Header() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl text-white hover:bg-white/10"
@@ -82,7 +98,7 @@ export default function Header() {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-emerald-600 space-y-3">
+          <div className="md:hidden py-4 border-t border-white/20 space-y-3">
             <Link
               href="/buscar"
               onClick={() => setMobileMenuOpen(false)}
@@ -104,7 +120,7 @@ export default function Header() {
             >
               Como Funciona
             </Link>
-            <div className="pt-2 border-t border-emerald-600 flex flex-col gap-2">
+            <div className="pt-2 border-t border-white/20 flex flex-col gap-2">
               <Link
                 href="/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
