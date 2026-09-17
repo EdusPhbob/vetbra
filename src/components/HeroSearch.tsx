@@ -148,11 +148,11 @@ export default function HeroSearch() {
   };
 
   return (
-    <div className="pt-2 sm:pt-3 max-w-5xl mx-auto space-y-3 w-full">
+    <div className="max-w-5xl mx-auto space-y-2 w-full">
       
       {/* BANNER FLUTUANTE DE SOLICITAÇÃO AMIGÁVEL DE LOCALIZAÇÃO */}
       {showLocationPrompt && (
-        <div className="bg-emerald-[#147A44]/90 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="bg-emerald-[#147A44]/90 backdrop-blur-md text-white px-4 py-2 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span className="font-semibold">Deseja encontrar veterinários próximos à sua localização?</span>
@@ -182,7 +182,7 @@ export default function HeroSearch() {
       {/* FORMULÁRIO PRINCIPAL DE BUSCA CENTRALIZADO E CLEAN */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-3.5 sm:p-5 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-left"
+        className="bg-white p-3 sm:p-3.5 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-left items-center"
       >
         {/* Campo Qual é o seu pet? */}
         <div className="space-y-1.5 px-3 py-1">

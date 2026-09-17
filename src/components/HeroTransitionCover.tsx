@@ -127,7 +127,7 @@ export default function HeroTransitionCover({ children }: HeroTransitionCoverPro
 
       {/* 2ª CAMADA: TELA DE BUSCA COMPLETA (PILL, TÍTULO, SUBTÍTULO, BUSCA E 4 CARDS) */}
       <div
-        className={`w-full flex-1 flex flex-col justify-between py-6 sm:py-8 transition-all duration-700 ease-out ${
+        className={`w-full flex-1 flex flex-col justify-between transition-all duration-700 ease-out py-2 sm:py-3 ${
           coverActive
             ? 'opacity-0 scale-98 pointer-events-none'
             : 'opacity-100 scale-100 pointer-events-auto'
