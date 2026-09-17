@@ -17,6 +17,7 @@ import {
   Stethoscope
 } from 'lucide-react';
 import { formatCrmv, checkCrmvValidity } from '@/lib/crmv';
+import WhatsAppContactButton from '@/components/WhatsAppContactButton';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -162,17 +163,15 @@ export default async function VetProfilePage({ params }: Props) {
                 </div>
               </div>
 
-              {/* Ação Principal: WhatsApp */}
+              {/* Ação Principal: WhatsApp com telemetria */}
               <div className="flex flex-col gap-2 shrink-0">
-                <a
-                  href={`https://wa.me/55${vet.whatsapp}?text=${whatsappMessage}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Agendar no WhatsApp
-                </a>
+                <WhatsAppContactButton
+                  veterinarioId={vet.id}
+                  whatsappNumber={vet.whatsapp}
+                  veterinarioNome={vet.nomeCompleto}
+                  origem="PERFIL_TOP"
+                  size="md"
+                />
               </div>
 
             </div>

@@ -128,6 +128,23 @@ export default function HeroSearch() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Registra métrica de busca para inteligência de mercado
+    try {
+      const digitosCep = localizacao.replace(/\D/g, '');
+      fetch('/api/analytics/search-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          termo: localizacao,
+          cep: digitosCep.length === 8 ? digitosCep : null,
+          tipoPet,
+          especialidade
+        }),
+        keepalive: true
+      }).catch(() => {});
+    } catch (e) {}
+
     const mapElement = document.getElementById('mapa-vets');
     if (mapElement) {
       scrollToMapSection();

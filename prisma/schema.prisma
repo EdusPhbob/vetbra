@@ -35,9 +35,23 @@ enum AssinaturaStatus {
   INADIMPLENTE
 }
 
+enum FaturaStatus {
+  PENDENTE
+  PAGO
+  EXPIRADO
+  CANCELADO
+}
+
+enum MetodoPagamento {
+  PIX
+  BOLETO
+  CARTAO
+}
+
 model User {
   id            String       @id @default(uuid())
   email         String       @unique
+  login         String?      @unique
   senhaHash     String
   nome          String
   role          Role         @default(VET)
@@ -63,18 +77,26 @@ model Veterinario {
   fotoPerfilUrl         String?
   bannerUrl             String?
   
-  // CRMV & Validação
+  // CRMV & Validação Anti-Fraude
   crmvNumero            String
   crmvUf                String
   crmvStatus            CrmvStatus        @default(PENDENTE)
   crmvValidade          DateTime?
-  crmvComprovanteUrl    String?
+  crmvDocumentoUrl      String?           // Foto da carteira profissional CRMV
+  crmvSelfieUrl         String?           // Foto segurando o documento (selfie anti-fraude)
+  crmvComprovanteUrl    String?           // Comprovante complementar
+  crmvAlerta30diasEnviado Boolean         @default(false)
   crmvUltimaVerificacao DateTime?
   crmvNotasAuditoria    String?
   
-  // Tipo de Atendimento
-  tipoEstabelecimento   String            @default("Clinica") // Clinica, Consultorio, Hospital 24h, Vet Domiciliar
-  meioTransporte        String?           @default("Nenhum")  // Carro, Moto, Carro e Moto, Nenhum
+  // Tipo de Atendimento & Deslocamento
+  tipoEstabelecimento   String            @default("Clinica") // Clinica, Consultorio, Hospital 24h, Atendimento Domiciliar / VetMóvel
+  meioTransporte        String?           @default("Nenhum")  // Legado / compatibilidade
+  meiosTransporte       String[]          @default([])        // CARRO_PETMOVEL, CARRO_AMBULANCIA, MOTO, FIXO
+  raioAtendimentoKm     Int?              @default(15)        // 5, 15, 30 ou 99999 (Sem Limites)
+  cidadeBase            String?           @default("São Paulo")
+  estadoBase            String?           @default("SP")
+  permiteVetMovelApp    Boolean           @default(false)     // Modo VetMóvel para futuro app de transporte pet
   atende24h             Boolean           @default(false)
   atendeDomiciliar      Boolean           @default(false)
   atendeEmergencia      Boolean           @default(false)
@@ -100,29 +122,32 @@ model Veterinario {
   avaliacoes            Avaliacao[]
   auditorias            CrmvAuditoriaLog[]
   artigos               Artigo[]
+  cliquesWhatsapp       CliqueWhatsappLog[]
+  faturas               FaturaCobranca[]
 
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 }
 
 model Endereco {
-  id               String      @id @default(uuid())
-  veterinarioId    String
-  veterinario      Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  id                String      @id @default(uuid())
+  veterinarioId     String
+  veterinario       Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
 
-  cep              String
-  logradouro       String
-  numero           String
-  complemento      String?
-  bairro           String
-  cidade           String
-  estado           String      // SP, RJ, etc.
-  latitude         Float?
-  longitude        Float?
-  raioKmAtendimento Int?       @default(15) // Para atendimento a domicílio
+  tipoEndereco      String      @default("PRINCIPAL") // PRINCIPAL, FILIAL
+  cep               String
+  logradouro        String
+  numero            String
+  complemento       String?
+  bairro            String
+  cidade            String
+  estado            String      // SP, RJ, etc.
+  latitude          Float?
+  longitude         Float?
+  raioKmAtendimento Int?        @default(15) // Para atendimento a domicílio
 
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model Especialidade {
@@ -135,20 +160,20 @@ model Especialidade {
 }
 
 model Procedimento {
-  id               String      @id @default(uuid())
-  veterinarioId    String
-  veterinario      Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  id                String      @id @default(uuid())
+  veterinarioId     String
+  veterinario       Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
 
-  nome             String      // Ex: Consulta Clínica Geral, Vacina V10, Castração
-  categoria        String      // Consulta, Vacinação, Cirurgia, Exame, Emergência, Estética
-  preco            Float       // Valor em R$
-  precoSobConsulta Boolean     @default(false)
-  descricao        String?
+  nome              String      // Ex: Consulta Clínica Geral, Vacina V10, Castração
+  categoria         String      // Consulta, Vacinação, Cirurgia, Exame, Emergência, Estética
+  preco             Float       // Valor em R$
+  precoSobConsulta  Boolean     @default(false)
+  descricao         String?
   tempoMedioMinutos Int?
 
-  ativo            Boolean     @default(true)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  ativo             Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model Avaliacao {
@@ -194,3 +219,67 @@ model Artigo {
   @@index([categoria])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  codigo    String   // Código numérico de 6 dígitos para WhatsApp/Email
+  token     String   @unique
+  expiraEm  DateTime
+  usado     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([codigo])
+}
+
+model CliqueWhatsappLog {
+  id            String      @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  origem        String      @default("PERFIL") // PERFIL, CARD_BUSCA, MAPA
+  ip            String?
+  userAgent     String?
+  cidadeTutor   String?
+  createdAt     DateTime    @default(now())
+
+  @@index([veterinarioId])
+  @@index([createdAt])
+}
+
+model BuscaLeadLog {
+  id            String   @id @default(uuid())
+  termo         String?
+  cep           String?
+  cidade        String?
+  estado        String?
+  tipoPet       String?
+  especialidade String?
+  ip            String?
+  createdAt     DateTime @default(now())
+
+  @@index([cep])
+  @@index([cidade, estado])
+  @@index([createdAt])
+}
+
+model FaturaCobranca {
+  id                   String          @id @default(uuid())
+  veterinarioId        String
+  veterinario          Veterinario     @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+  plano                PlanoTipo
+  valor                Float
+  status               FaturaStatus    @default(PENDENTE)
+  metodo               MetodoPagamento @default(PIX)
+  pixCopiaCola         String?
+  pixQrCodeUrl         String?
+  boletoCodigoBarras   String?
+  boletoLinhaDigitavel String?
+  boletoPdfUrl         String?
+  dataVencimento       DateTime
+  dataPagamento        DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([veterinarioId])
+  @@index([status])
+}
