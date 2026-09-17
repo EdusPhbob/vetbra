@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { 
-  FaturaStatus, 
-  AssinaturaStatus, 
-  PagamentoStatus, 
-  MetodoPagamento, 
-  VetStatusGeral 
-} from '@prisma/client';
+import { liquidarFatura } from '@/lib/payments/service';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const gateway = request.headers.get('x-gateway-name') || 'MERCADOPAGO_OU_ASAAS';
+    const gateway = request.headers.get('x-gateway-name') || 'ASAAS';
     
     // Identificador único do evento fornecido pelo gateway
     const eventId = body.id || body.eventId || body.data?.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -43,8 +37,9 @@ export async function POST(request: Request) {
     });
 
     // Identifica a fatura pelo número da fatura ou ID externo da cobrança
-    const numeroFatura = body.numeroFatura || body.data?.external_reference || body.externalReference;
-    const gatewayCobrancaId = body.cobrancaId || body.data?.id;
+    const paymentData = body.payment || body;
+    const numeroFatura = paymentData.externalReference || body.numeroFatura || body.data?.external_reference;
+    const gatewayCobrancaId = paymentData.id || body.cobrancaId || body.data?.id;
 
     if (!numeroFatura && !gatewayCobrancaId) {
       // Confirma recebimento para o gateway mesmo que não seja um evento de cobrança direta
@@ -57,9 +52,6 @@ export async function POST(request: Request) {
           ...(numeroFatura ? [{ numeroFatura: String(numeroFatura) }] : []),
           ...(gatewayCobrancaId ? [{ gatewayCobrancaId: String(gatewayCobrancaId) }] : [])
         ]
-      },
-      include: {
-        assinatura: true
       }
     });
 
@@ -67,77 +59,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Fatura correspondente não encontrada.' }, { status: 404 });
     }
 
-    // Processamento da Liquidação (Pix ou Boleto Compensado)
-    const valorPago = body.valorPago || body.data?.transaction_amount || Number(fatura.valor);
-    const pixEndToEndId = body.pixEndToEndId || body.data?.charges?.[0]?.last_transaction?.gateway_response?.end_to_end_id || null;
+    // Se o evento indicar recebimento/confirmação
+    const isConfirmado = ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED', 'payment.created', 'payment.updated'].includes(String(tipoEvento));
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Atualiza Fatura para PAGA
-      await tx.faturaCobranca.update({
-        where: { id: fatura.id },
-        data: {
-          status: FaturaStatus.PAGA,
-          dataLiquidacao: new Date()
-        }
+    if (isConfirmado) {
+      const valorPago = paymentData.value || paymentData.netValue || body.valorPago || Number(fatura.valor);
+      const pixEndToEndId = paymentData.pixEndToEndId || body.pixEndToEndId || null;
+
+      await liquidarFatura({
+        faturaId: fatura.id,
+        valorPago: Number(valorPago),
+        gatewayTransacaoId: String(eventId),
+        pixEndToEndId,
+        autorEmail: `WEBHOOK_${gateway}`,
       });
 
-      // 2. Registra o Pagamento com chave de idempotência
-      await tx.pagamento.create({
-        data: {
-          faturaId: fatura.id,
-          metodo: fatura.metodoPreferencial || MetodoPagamento.PIX,
-          status: PagamentoStatus.APROVADO,
-          valorPago,
-          idempotencyKey: `pay-${eventId}`,
-          gatewayTransacaoId: String(eventId),
-          pixEndToEndId,
-          pagoEm: new Date()
-        }
-      });
-
-      // 3. Cancela qualquer outra assinatura ativa anterior do mesmo veterinário
-      await tx.assinatura.updateMany({
-        where: {
-          veterinarioId: fatura.assinatura.veterinarioId,
-          status: AssinaturaStatus.ATIVA,
-          id: { not: fatura.assinaturaId }
-        },
-        data: {
-          status: AssinaturaStatus.CANCELADA,
-          canceladaEm: new Date()
-        }
-      });
-
-      // 4. Ativa a Assinatura atual
-      await tx.assinatura.update({
-        where: { id: fatura.assinaturaId },
-        data: {
-          status: AssinaturaStatus.ATIVA,
-          dataFimPeriodo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
-        }
-      });
-
-      // 5. Atualiza o status geral do Veterinário para ATIVO
-      await tx.veterinario.update({
-        where: { id: fatura.assinatura.veterinarioId },
-        data: {
-          statusGeral: VetStatusGeral.ATIVO
-        }
-      });
-
-      // 6. Marca o Webhook como processado
-      await tx.webhookEvent.update({
+      // Marca o Webhook como processado
+      await prisma.webhookEvent.update({
         where: { id: webhookLog.id },
         data: {
           processado: true,
           processadoEm: new Date()
         }
       });
-    });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Pagamento liquidado com sucesso e assinatura ativada via webhook!'
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Pagamento liquidado com sucesso e assinatura ativada!'
+      message: `Evento ${tipoEvento} registrado sem necessidade de liquidação imediata.`
     });
   } catch (error: any) {
     console.error('Erro no processamento do webhook:', error);
