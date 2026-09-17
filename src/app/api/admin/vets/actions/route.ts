@@ -251,6 +251,9 @@ export async function POST(request: Request) {
       }
 
       case 'CONFIRMAR_PAGAMENTO': {
+        const adminResponsavel = session.login || session.nome || session.email || 'admin';
+        const comprovanteUrl = body.comprovanteUrl || null;
+
         const assinatura = await prisma.assinatura.findFirst({
           where: { veterinarioId },
           include: { faturas: { orderBy: { createdAt: 'desc' }, take: 1 } },
@@ -264,7 +267,11 @@ export async function POST(request: Request) {
             where: { id: assinatura.id },
             data: {
               status: 'ATIVA',
-              dataFimPeriodo: dataFim
+              dataFimPeriodo: dataFim,
+              aprovadoManualmente: true,
+              aprovadoPor: adminResponsavel,
+              comprovanteUrl: comprovanteUrl || assinatura.comprovanteUrl,
+              comprovanteEnviadoEm: comprovanteUrl ? new Date() : assinatura.comprovanteEnviadoEm
             }
           });
 
@@ -273,7 +280,11 @@ export async function POST(request: Request) {
               where: { id: assinatura.faturas[0].id },
               data: {
                 status: 'PAGA',
-                dataLiquidacao: new Date()
+                dataLiquidacao: new Date(),
+                aprovadoManualmente: true,
+                aprovadoPor: adminResponsavel,
+                comprovanteUrl: comprovanteUrl || assinatura.faturas[0].comprovanteUrl,
+                comprovanteEnviadoEm: comprovanteUrl ? new Date() : assinatura.faturas[0].comprovanteEnviadoEm
               }
             });
           }
@@ -299,15 +310,75 @@ export async function POST(request: Request) {
           registroId: veterinarioId,
           acao: 'APROVACAO',
           autorId: session.userId,
-          autorEmail: adminEmail,
+          autorEmail: adminResponsavel,
           autorRole: 'ADMIN',
-          justificativa: motivo || 'Pagamento Pix confirmado manualmente pelo administrador',
+          dadosNovos: {
+            aprovadoManualmente: true,
+            comprovanteUrl: comprovanteUrl || null,
+            faltaComprovante: !comprovanteUrl
+          },
+          justificativa: motivo || `Pagamento Pix confirmado manualmente por ${adminResponsavel}${comprovanteUrl ? ' (comprovante anexado)' : ' (sem comprovante)'}`,
         });
 
         return NextResponse.json({
           success: true,
-          message: 'Pagamento confirmado e plano mensal ativado com sucesso!',
+          message: comprovanteUrl 
+            ? 'Pagamento confirmado com comprovante Pix anexado com sucesso!'
+            : 'Pagamento confirmado manualmente. Lembre-se de anexar o comprovante Pix.',
           vet: updated
+        });
+      }
+
+      case 'VINCULAR_COMPROVANTE': {
+        const adminResponsavel = session.login || session.nome || session.email || 'admin';
+        const { comprovanteUrl } = body;
+
+        if (!comprovanteUrl) {
+          return NextResponse.json({ error: 'URL do comprovante é obrigatória.' }, { status: 400 });
+        }
+
+        const assinatura = await prisma.assinatura.findFirst({
+          where: { veterinarioId },
+          include: { faturas: { orderBy: { createdAt: 'desc' }, take: 1 } },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (assinatura) {
+          await prisma.assinatura.update({
+            where: { id: assinatura.id },
+            data: {
+              comprovanteUrl,
+              comprovanteEnviadoEm: new Date(),
+              aprovadoPor: adminResponsavel
+            }
+          });
+
+          if (assinatura.faturas[0]) {
+            await prisma.faturaCobranca.update({
+              where: { id: assinatura.faturas[0].id },
+              data: {
+                comprovanteUrl,
+                comprovanteEnviadoEm: new Date(),
+                aprovadoPor: adminResponsavel
+              }
+            });
+          }
+        }
+
+        await registrarAuditoria({
+          entidade: 'FATURA',
+          registroId: veterinarioId,
+          acao: 'EDICAO',
+          autorId: session.userId,
+          autorEmail: adminResponsavel,
+          autorRole: 'ADMIN',
+          dadosNovos: { comprovanteUrl },
+          justificativa: 'Comprovante Pix anexado ao cadastro do profissional',
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: 'Comprovante Pix anexado com sucesso!'
         });
       }
 

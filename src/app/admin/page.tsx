@@ -37,7 +37,9 @@ import {
   Maximize2,
   X,
   Gift,
-  Sparkles
+  Sparkles,
+  Upload,
+  FileCheck
 } from 'lucide-react';
 import { formatCrmv, getCfmvConsultaUrl } from '@/lib/crmv';
 
@@ -70,6 +72,15 @@ export default function AdminCrmvModerationPage() {
     crmvNumero: string;
     crmvUf: string;
   } | null>(null);
+
+  // Modal e Upload de Comprovante Pix
+  const [comprovanteModal, setComprovanteModal] = useState<{
+    vetId: string;
+    vetNome: string;
+  } | null>(null);
+  const [selectedComprovanteFile, setSelectedComprovanteFile] = useState<File | null>(null);
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
+  const [uploadingComprovanteVetId, setUploadingComprovanteVetId] = useState<string | null>(null);
 
   // Resposta a tickets
   const [replyingTicketId, setReplyingTicketId] = useState<string | null>(null);
@@ -194,9 +205,6 @@ export default function AdminCrmvModerationPage() {
     } else if (acao === 'LIBERAR_TRIAL') {
       const conf = window.confirm('Deseja conceder 7 dias de Teste Gratuito para este veterinário? Ele terá acesso total até o término do prazo.');
       if (!conf) return;
-    } else if (acao === 'CONFIRMAR_PAGAMENTO') {
-      const conf = window.confirm('Confirma que o pagamento Pix deste médico foi recebido? O plano será ativado imediatamente.');
-      if (!conf) return;
     }
 
     setProcessingActionId(veterinarioId);
@@ -208,7 +216,8 @@ export default function AdminCrmvModerationPage() {
           veterinarioId,
           acao,
           dias: extra?.dias || 7,
-          motivo: `Ação ${acao} executada pelo painel administrativo`
+          comprovanteUrl: extra?.comprovanteUrl || null,
+          motivo: extra?.motivo || `Ação ${acao} executada pelo painel administrativo`
         })
       });
 
@@ -222,6 +231,77 @@ export default function AdminCrmvModerationPage() {
       console.error('Erro na ação administrativa:', err);
     } finally {
       setProcessingActionId(null);
+    }
+  };
+
+  const handleDirectUploadComprovante = async (vetId: string, file: File) => {
+    setUploadingComprovanteVetId(vetId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'crmv');
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok || !uploadData.url) {
+        alert(uploadData.error || 'Erro ao enviar comprovante.');
+        return;
+      }
+
+      const actionRes = await fetch('/api/admin/vets/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          veterinarioId: vetId,
+          acao: 'VINCULAR_COMPROVANTE',
+          comprovanteUrl: uploadData.url
+        })
+      });
+
+      if (actionRes.ok) {
+        await loadVets();
+      } else {
+        const err = await actionRes.json();
+        alert(err.error || 'Erro ao vincular comprovante.');
+      }
+    } catch (err) {
+      console.error('Erro ao enviar comprovante:', err);
+      alert('Erro de conexão ao enviar comprovante.');
+    } finally {
+      setUploadingComprovanteVetId(null);
+    }
+  };
+
+  const handleConfirmarPagamentoComprovante = async (vetId: string, file: File | null) => {
+    setUploadingComprovante(true);
+    try {
+      let comprovanteUrl: string | null = null;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'crmv');
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok && uploadData.url) {
+          comprovanteUrl = uploadData.url;
+        }
+      }
+
+      await handleVetAction(vetId, 'CONFIRMAR_PAGAMENTO', { comprovanteUrl });
+      setComprovanteModal(null);
+      setSelectedComprovanteFile(null);
+    } catch (err) {
+      console.error('Erro ao confirmar pagamento com comprovante:', err);
+      alert('Erro ao confirmar pagamento.');
+    } finally {
+      setUploadingComprovante(false);
     }
   };
 
@@ -516,6 +596,9 @@ export default function AdminCrmvModerationPage() {
                     ? Math.max(0, Math.ceil((new Date(assinatura.dataFimPeriodo).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                     : null;
                   const isNovo = (Date.now() - new Date(vet.createdAt).getTime()) < (7 * 24 * 60 * 60 * 1000);
+                  const comprovanteUrl = assinatura?.comprovanteUrl || fatura?.comprovanteUrl;
+                  const isAprovadoManualmente = assinatura?.aprovadoManualmente || fatura?.aprovadoManualmente;
+                  const faltaComprovante = isPago && (isAprovadoManualmente || !assinatura?.gatewayAssinaturaId) && !comprovanteUrl;
 
                   // Presença Online (últimos 15 minutos)
                   const ultimoLogin = vet.user?.ultimoLoginEm ? new Date(vet.user.ultimoLoginEm) : null;
@@ -560,9 +643,32 @@ export default function AdminCrmvModerationPage() {
 
                               {/* Status Financeiro / Pagamento */}
                               {isPago ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Plano Pago & Ativo
-                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Plano Pago & Ativo
+                                  </span>
+                                  {faltaComprovante && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-400 flex items-center gap-1 animate-pulse">
+                                      <AlertTriangle className="w-3 h-3 text-amber-600" /> Falta Comprovante Pix
+                                    </span>
+                                  )}
+                                  {comprovanteUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModal({
+                                        url: comprovanteUrl,
+                                        tipo: 'Comprovante de Pagamento Pix',
+                                        vetId: vet.id,
+                                        vetNome: vet.nomeCompleto,
+                                        crmvNumero: vet.crmvNumero,
+                                        crmvUf: vet.crmvUf
+                                      })}
+                                      className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-teal-100 text-teal-900 border border-teal-300 flex items-center gap-1 hover:bg-teal-200 transition-colors cursor-pointer"
+                                    >
+                                      <FileCheck className="w-3 h-3 text-teal-700" /> Comprovante Anexado
+                                    </button>
+                                  )}
+                                </div>
                               ) : isTrial ? (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-indigo-600" /> Teste 7D ({diasRestantesTrial}d restantes)
@@ -675,12 +781,44 @@ export default function AdminCrmvModerationPage() {
 
                       </div>
 
+                      {/* ALERTA: FALTA COMPROVANTE PIX (PAGAMENTO MANUAL) */}
+                      {faltaComprovante && (
+                        <div className="p-3.5 bg-amber-50 border-2 border-dashed border-amber-400 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                          <div className="flex items-center gap-2.5 text-xs text-amber-900">
+                            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 animate-pulse" />
+                            <div>
+                              <span className="font-black text-amber-950 block">
+                                Pagamento Aprovado Manualmente — Falta Comprovante Pix!
+                              </span>
+                              <span className="text-[11px] text-amber-800 font-medium">
+                                {assinatura?.aprovadoPor ? `Aprovado por ${assinatura.aprovadoPor}. ` : ''}
+                                Faça o upload da foto do comprovante para conformidade financeira e auditoria.
+                              </span>
+                            </div>
+                          </div>
+                          <label className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-xs shrink-0">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{uploadingComprovanteVetId === vet.id ? 'Enviando...' : 'Upar Foto do Comprovante'}</span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              disabled={uploadingComprovanteVetId === vet.id}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleDirectUploadComprovante(vet.id, f);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+
                       {/* AUDITORIA VISUAL DE FOTOS E DOCUMENTOS CRMV */}
                       <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                             <FileText className="w-4 h-4 text-emerald-600" />
-                            Documentação & Fotos Comprobatórias (Auditoria CFMV):
+                            Documentação, Comprovantes & Fotos Auditadas:
                           </span>
                           {isVerificado ? (
                             <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
@@ -804,6 +942,70 @@ export default function AdminCrmvModerationPage() {
                               </div>
                             </button>
                           )}
+
+                          {/* Foto do Comprovante Pix (Se já anexado) */}
+                          {comprovanteUrl && (
+                            <div className="relative group">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewModal({
+                                  url: comprovanteUrl,
+                                  tipo: 'Comprovante de Pagamento Pix',
+                                  vetId: vet.id,
+                                  vetNome: vet.nomeCompleto,
+                                  crmvNumero: vet.crmvNumero,
+                                  crmvUf: vet.crmvUf
+                                })}
+                                className="flex items-center gap-2 p-2 rounded-xl bg-teal-50 border border-teal-300 hover:border-teal-500 hover:shadow-xs transition-all cursor-pointer text-left"
+                              >
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-white shrink-0 relative border border-teal-200">
+                                  <img src={comprovanteUrl} alt="Comprovante" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                                  </div>
+                                </div>
+                                <div className="pr-2">
+                                  <span className="text-xs font-bold text-teal-950 block group-hover:text-teal-700">
+                                    Comprovante Pix
+                                  </span>
+                                  <span className="text-[10px] text-teal-700 flex items-center gap-1">
+                                    <FileCheck className="w-3 h-3 text-teal-600" /> Ver Comprovante
+                                  </span>
+                                </div>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Botão de Anexar Foto do Comprovante caso falte comprovante */}
+                          {faltaComprovante && (
+                            <label className="group relative flex items-center gap-2 p-2 rounded-xl bg-amber-50 border-2 border-dashed border-amber-400 hover:border-amber-600 hover:bg-amber-100/70 transition-all cursor-pointer text-left shadow-2xs">
+                              <div className="w-12 h-12 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-300">
+                                {uploadingComprovanteVetId === vet.id ? (
+                                  <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                                ) : (
+                                  <Upload className="w-5 h-5 text-amber-600 animate-bounce" />
+                                )}
+                              </div>
+                              <div className="pr-2">
+                                <span className="text-xs font-black text-amber-900 block group-hover:text-amber-950">
+                                  Falta Comprovante Pix!
+                                </span>
+                                <span className="text-[10px] text-amber-700 font-bold block">
+                                  {uploadingComprovanteVetId === vet.id ? 'Enviando...' : 'Clique para upar a foto'}
+                                </span>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                disabled={uploadingComprovanteVetId === vet.id}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleDirectUploadComprovante(vet.id, f);
+                                }}
+                              />
+                            </label>
+                          )}
                         </div>
                       </div>
 
@@ -864,14 +1066,32 @@ export default function AdminCrmvModerationPage() {
                           {/* Confirmar Pagamento Pix */}
                           {!isPago && (
                             <button
-                              onClick={() => handleVetAction(vet.id, 'CONFIRMAR_PAGAMENTO')}
+                              onClick={() => setComprovanteModal({ vetId: vet.id, vetNome: vet.nomeCompleto })}
                               disabled={processingActionId === vet.id}
-                              className="px-3.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                              className="px-3.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                               title="Confirma recebimento Pix e ativa o plano mensal"
                             >
                               <DollarSign className="w-3.5 h-3.5 text-teal-600" />
                               Confirmar Pagamento Pix
                             </button>
+                          )}
+
+                          {/* Botão de Ação: Upar Comprovante caso falte */}
+                          {faltaComprovante && (
+                            <label className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>{uploadingComprovanteVetId === vet.id ? 'Enviando...' : '📷 Upar Comprovante Pix'}</span>
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                disabled={uploadingComprovanteVetId === vet.id}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleDirectUploadComprovante(vet.id, f);
+                                }}
+                              />
+                            </label>
                           )}
 
                           {/* Suspender do Mapa */}
@@ -1674,33 +1894,143 @@ export default function AdminCrmvModerationPage() {
 
             {/* Rodapé de Ações de Auditoria */}
             <div className="px-6 py-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-between gap-3">
-              <a
-                href={getCfmvConsultaUrl(previewModal.crmvNumero, previewModal.crmvUf)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
-              >
-                <ExternalLink className="w-4 h-4" /> Checar Dados no Siscad CFMV
-              </a>
+              {previewModal.tipo === 'Comprovante de Pagamento Pix' ? (
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-xs font-semibold text-teal-800 flex items-center gap-1.5">
+                    <FileCheck className="w-4 h-4 text-teal-600" />
+                    Comprovante de Pagamento Pix arquivado para conformidade fiscal e auditoria.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewModal(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <a
+                    href={getCfmvConsultaUrl(previewModal.crmvNumero, previewModal.crmvUf)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Checar Dados no Siscad CFMV
+                  </a>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleRejectCrmv(previewModal.vetId)}
-                  disabled={processingId === previewModal.vetId}
-                  className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <XCircle className="w-4 h-4" /> Rejeitar Documento
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(previewModal.vetId, 'VERIFICADO')}
-                  disabled={processingId === previewModal.vetId}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Aprovar Fotos & Liberar Selo Verde
-                </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRejectCrmv(previewModal.vetId)}
+                      disabled={processingId === previewModal.vetId}
+                      className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <XCircle className="w-4 h-4" /> Rejeitar Documento
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateStatus(previewModal.vetId, 'VERIFICADO')}
+                      disabled={processingId === previewModal.vetId}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Aprovar Fotos & Liberar Selo Verde
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE PAGAMENTO & UPLOAD DE COMPROVANTE */}
+      {comprovanteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">
+                  Auditoria de Pagamento Pix
+                </span>
+                <h3 className="text-xl font-black text-slate-900">
+                  Confirmar Pagamento de {comprovanteModal.vetNome}
+                </h3>
               </div>
+              <button
+                onClick={() => {
+                  setComprovanteModal(null);
+                  setSelectedComprovanteFile(null);
+                }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Você pode selecionar o comprovante Pix agora para salvar no banco de dados. Caso confirme <strong>sem o arquivo</strong>, o médico será ativado, mas o card ficará em alerta exibindo <strong>"FALTA COMPROVANTE"</strong> até que a foto seja anexada.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-300 space-y-3 text-center">
+              {selectedComprovanteFile ? (
+                <div className="space-y-2">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto">
+                    <FileCheck className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 block truncate max-w-xs mx-auto">
+                    {selectedComprovanteFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedComprovanteFile(null)}
+                    className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
+                  >
+                    Remover arquivo
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer block space-y-1.5">
+                  <Upload className="w-8 h-8 text-slate-400 mx-auto" />
+                  <span className="text-xs font-bold text-slate-700 block">
+                    Selecione a foto ou print do comprovante Pix
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    Formatos aceitos: JPG, PNG, WebP ou PDF (máx. 10MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setSelectedComprovanteFile(f);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                disabled={!selectedComprovanteFile || uploadingComprovante}
+                onClick={() => handleConfirmarPagamentoComprovante(comprovanteModal.vetId, selectedComprovanteFile)}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer transition-all"
+              >
+                {uploadingComprovante ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
+                <span>Confirmar Pagamento com Comprovante Anexado</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={uploadingComprovante}
+                onClick={() => handleConfirmarPagamentoComprovante(comprovanteModal.vetId, null)}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span>Confirmar Sem Comprovante (Ficará Pendente de Anexo)</span>
+              </button>
             </div>
           </div>
         </div>

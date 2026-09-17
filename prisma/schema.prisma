@@ -388,6 +388,12 @@ model Assinatura {
   canceladaEm           DateTime?
   gatewayAssinaturaId   String?           // ID da assinatura no Asaas/MercadoPago/Pagar.me
 
+  // Auditoria de Pagamento Manual / Pix
+  aprovadoManualmente   Boolean           @default(false)
+  aprovadoPor           String?           // Login/Email do admin que aprovou o pagamento
+  comprovanteUrl        String?           // URL da foto ou arquivo do comprovante Pix
+  comprovanteEnviadoEm  DateTime?
+
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
@@ -414,6 +420,12 @@ model FaturaCobranca {
   boletoLinhaDigitavel  String?
   boletoPdfUrl          String?
   gatewayCobrancaId     String?           @unique // ID da cobrança no gateway
+
+  // Auditoria de Comprovante de Pagamento
+  aprovadoManualmente   Boolean           @default(false)
+  aprovadoPor           String?           // Login/Email do admin que aprovou o pagamento
+  comprovanteUrl        String?           // Foto/PDF do comprovante anexado
+  comprovanteEnviadoEm  DateTime?
 
   dataVencimento        DateTime
   dataLiquidacao        DateTime?
