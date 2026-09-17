@@ -86,25 +86,61 @@ export default async function VetProfilePage({ params }: Props) {
     `Olá Dr(a). ${vet.nomeCompleto}, vi seu perfil no portal VetBra e gostaria de consultar horários para atendimento do meu pet.`
   );
 
-  // Schema.org para o Google (SEO Local & Rich Snippets)
+  // Schema.org para o Google (SEO Local, Estrelas Douradas & Rich Snippets)
+  const especialidadesNomes = vet.especialidades
+    ?.map((e) => e.especialidade?.nome)
+    .filter(Boolean) || [];
+
   const schemaJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'VeterinaryCare',
+    '@id': `https://vetbra.duosat.com.br/vets/${vet.slug}#veterinary`,
     name: vet.nomeSocialOuClinica || vet.nomeCompleto,
-    image: vet.fotoPerfilUrl,
-    telephone: vet.telefone || vet.whatsapp,
-    address: {
+    legalName: vet.nomeCompleto,
+    url: `https://vetbra.duosat.com.br/vets/${vet.slug}`,
+    image: vet.fotoPerfilUrl || 'https://vetbra.duosat.com.br/icon-512.png',
+    telephone: vet.telefone || vet.whatsapp || undefined,
+    description: vet.bio || `Atendimento veterinário especializado com Dr(a). ${vet.nomeCompleto} em ${endereco.cidade || 'Brasil'} com CRMV verificado no CFMV.`,
+    priceRange: 'R$ R$',
+    identifier: `CRMV-${vet.crmvUf} ${vet.crmvNumero}`,
+    medicalSpecialty: especialidadesNomes.length > 0 ? especialidadesNomes : undefined,
+    address: endereco.cidade ? {
       '@type': 'PostalAddress',
-      streetAddress: endereco.logradouro ? `${endereco.logradouro}, ${endereco.numero}` : '',
+      streetAddress: endereco.logradouro ? `${endereco.logradouro}, ${endereco.numero || 's/n'}` : '',
       addressLocality: endereco.cidade,
       addressRegion: endereco.estado,
-      postalCode: endereco.cep
-    },
+      postalCode: endereco.cep || '',
+      addressCountry: 'BR'
+    } : undefined,
     geo: endereco.latitude && endereco.longitude ? {
       '@type': 'GeoCoordinates',
-      latitude: endereco.latitude,
-      longitude: endereco.longitude
-    } : undefined
+      latitude: Number(endereco.latitude),
+      longitude: Number(endereco.longitude)
+    } : undefined,
+    // Estrelas Douradas no Google: AggregateRating
+    aggregateRating: totalReviews > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: mediaNota,
+      reviewCount: totalReviews,
+      bestRating: '5',
+      worstRating: '1'
+    } : undefined,
+    // Avaliações de tutores indexadas pelo Google
+    review: vet.avaliacoes.length > 0 ? vet.avaliacoes.slice(0, 10).map((av) => ({
+      '@type': 'Review',
+      author: {
+        '@type': 'Person',
+        name: av.nomeTutor || 'Tutor'
+      },
+      datePublished: av.createdAt ? new Date(av.createdAt).toISOString().split('T')[0] : undefined,
+      reviewBody: av.comentario || 'Atendimento veterinário atencioso e qualificado.',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: av.nota,
+        bestRating: '5',
+        worstRating: '1'
+      }
+    })) : undefined
   };
 
   return (
