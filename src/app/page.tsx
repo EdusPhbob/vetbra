@@ -102,22 +102,13 @@ export default async function HomePage() {
         {/* BACKGROUND GRID SUAVE */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        {/* LOGO OFICIAL VETBRA COMO MARCA D'ÁGUA ELEGANTE NO FUNDO */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
-          <img
-            src="/logo-vetbra.jpg"
-            alt=""
-            className="w-[420px] h-[420px] sm:w-[580px] sm:h-[580px] object-cover rounded-full opacity-[0.05] blur-[1px] scale-105"
-          />
-        </div>
+        {/* LOGO VIBRANTE CENTRALIZADO DE FUNDO (COM EFEITO DE DESAPARECER AO ROLAR O MAPA) */}
+        <HeroCenteredLogo />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
-          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Logo Central com Efeito Scroll, Título, Subtítulo e Busca) */}
+          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
           <div className="text-center max-w-4xl mx-auto space-y-3 my-auto">
-            
-            {/* LOGO CENTRALIZADO COM GLOW E EFEITO DE DESAPARECER AO ROLAR O MAPA */}
-            <HeroCenteredLogo />
 
             {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
             <div className="flex justify-center">
