@@ -32,10 +32,14 @@ import {
   Send,
   Inbox,
   Sparkles,
-  Upload
+  Upload,
+  Search,
+  ListFilter,
+  ArrowRight
 } from 'lucide-react';
 import { formatCrmv } from '@/lib/crmv';
 import { parseUserAgent, formatOrigem } from '@/lib/deviceDetector';
+import { CATALOGO_PROCEDIMENTOS, LETRAS_ALFABETO, ProcedimentoCatalogo } from '@/lib/catalogoProcedimentos';
 
 // Catálogo de procedimentos sugeridos para preenchimento rápido
 const SUGESTOES_PROCEDIMENTOS = [
@@ -73,6 +77,22 @@ export default function DashboardPage() {
   const [novoTempo, setNovoTempo] = useState('30');
   const [procError, setProcError] = useState<string | null>(null);
   const [procSuccess, setProcSuccess] = useState<string | null>(null);
+
+  // Gaveta Lateral do Catálogo de Procedimentos (A-Z)
+  const [showDrawerCatalogo, setShowDrawerCatalogo] = useState(false);
+  const [buscaCatalogo, setBuscaCatalogo] = useState('');
+  const [letraFiltro, setLetraFiltro] = useState<string>('TODAS');
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('TODAS');
+  const [precosCatalogo, setPrecosCatalogo] = useState<{ [nome: string]: string }>({});
+  const [addingProcNome, setAddingProcNome] = useState<string | null>(null);
+
+  // Criar Procedimento Personalizado na gaveta ("se não existir tudo bem")
+  const [showCustomFormDrawer, setShowCustomFormDrawer] = useState(false);
+  const [customDrawerNome, setCustomDrawerNome] = useState('');
+  const [customDrawerCategoria, setCustomDrawerCategoria] = useState<string>('Consulta');
+  const [customDrawerPreco, setCustomDrawerPreco] = useState('');
+  const [customDrawerTempo, setCustomDrawerTempo] = useState('30');
+  const [savingCustomDrawer, setSavingCustomDrawer] = useState(false);
 
   const [savingArtigo, setSavingArtigo] = useState(false);
   const [artigoTitulo, setArtigoTitulo] = useState('');
@@ -421,6 +441,113 @@ export default function DashboardPage() {
       console.error(err);
     }
   };
+
+  // Adicionar procedimento diretamente do Catálogo Lateral (A-Z)
+  const handleAddProcedimentoFromCatalogo = async (item: ProcedimentoCatalogo) => {
+    if (!vet) {
+      alert('Sessão do veterinário não identificada. Por favor, recarregue a página.');
+      return;
+    }
+
+    const valorPreenchido = precosCatalogo[item.nome]?.trim() || item.valorSugerido || '150,00';
+    setAddingProcNome(item.nome);
+    setProcError(null);
+
+    try {
+      const res = await fetch('/api/dashboard/procedimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          veterinarioId: vet.id,
+          nome: item.nome,
+          categoria: item.categoria,
+          preco: valorPreenchido,
+          tempoMedioMinutos: item.tempo
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setProcedimentos(prev => [...prev, data]);
+        setProcSuccess(`"${data.nome}" adicionado com sucesso!`);
+        setTimeout(() => setProcSuccess(null), 3500);
+      } else {
+        alert(data.error || 'Erro ao adicionar procedimento.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao adicionar procedimento.');
+    } finally {
+      setAddingProcNome(null);
+    }
+  };
+
+  // Cadastrar procedimento personalizado pelo painel lateral ("se não existir tudo bem")
+  const handleAddCustomProcedimentoDrawer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vet) {
+      alert('Sessão não identificada.');
+      return;
+    }
+    if (!customDrawerNome.trim()) {
+      alert('Por favor, informe o nome do procedimento.');
+      return;
+    }
+    if (!customDrawerPreco.trim()) {
+      alert('Por favor, informe o valor do procedimento.');
+      return;
+    }
+
+    setSavingCustomDrawer(true);
+    try {
+      const res = await fetch('/api/dashboard/procedimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          veterinarioId: vet.id,
+          nome: customDrawerNome.trim(),
+          categoria: customDrawerCategoria,
+          preco: customDrawerPreco.trim(),
+          tempoMedioMinutos: customDrawerTempo || '30'
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setProcedimentos(prev => [...prev, data]);
+        setCustomDrawerNome('');
+        setCustomDrawerPreco('');
+        setShowCustomFormDrawer(false);
+        setProcSuccess(`Procedimento "${data.nome}" cadastrado com sucesso!`);
+        setTimeout(() => setProcSuccess(null), 3500);
+      } else {
+        alert(data.error || 'Erro ao cadastrar procedimento.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao cadastrar.');
+    } finally {
+      setSavingCustomDrawer(false);
+    }
+  };
+
+  // Filtragem da lista do catálogo em ordem alfabética
+  const filteredCatalogo = CATALOGO_PROCEDIMENTOS.filter(item => {
+    if (letraFiltro !== 'TODAS') {
+      const initial = item.nome.trim()[0].toUpperCase();
+      if (initial !== letraFiltro) return false;
+    }
+    if (categoriaFiltro !== 'TODAS') {
+      if (item.categoria !== categoriaFiltro) return false;
+    }
+    if (buscaCatalogo.trim()) {
+      const term = buscaCatalogo.toLowerCase().trim();
+      const matchNome = item.nome.toLowerCase().includes(term);
+      const matchCat = item.categoria.toLowerCase().includes(term);
+      if (!matchNome && !matchCat) return false;
+    }
+    return true;
+  });
 
   // Upload da Foto de Capa do Artigo
   const handleArtigoFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -848,7 +975,7 @@ export default function DashboardPage() {
 
         {/* TABELA DE PROCEDIMENTOS E PREÇOS */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-600" /> Tabela de Procedimentos e Serviços
@@ -857,18 +984,38 @@ export default function DashboardPage() {
                 Defina os procedimentos que você realiza e os preços que serão exibidos no seu perfil para os tutores.
               </p>
             </div>
-            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shrink-0">
-              {procedimentos.length} procedimentos cadastrados
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDrawerCatalogo(true)}
+                className="px-4 py-2.5 rounded-2xl bg-[#147A44] hover:bg-[#11693A] text-white text-xs font-bold flex items-center gap-2 shadow-sm hover:shadow transition-all cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Abrir Catálogo (A-Z)</span>
+                <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                  {CATALOGO_PROCEDIMENTOS.length}+ Prontos
+                </span>
+              </button>
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-2 rounded-2xl border border-emerald-200 shrink-0">
+                {procedimentos.length} cadastrados
+              </span>
+            </div>
           </div>
 
           {/* Sugestões Rápidas de Procedimentos (Catálogo Pronto) */}
           <div className="space-y-2 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Sugestões Rápidas (Clique para preencher):
               </span>
-              <span className="text-[10px] text-slate-400">Clique para selecionar e informe apenas o valor</span>
+              <button
+                type="button"
+                onClick={() => setShowDrawerCatalogo(true)}
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Ver lista completa que abre do lado (A-Z) →</span>
+              </button>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1">
               {SUGESTOES_PROCEDIMENTOS.map((sug, i) => (
@@ -881,27 +1028,35 @@ export default function DashboardPage() {
                   + {sug.nome}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowDrawerCatalogo(true)}
+                className="px-2.5 py-1 text-[11px] font-bold bg-emerald-100/80 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+              >
+                <span>+ Ver todos de A a Z</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
           </div>
 
           {/* Mensagens de feedback */}
           {procSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2 animate-in fade-in duration-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               {procSuccess}
             </div>
           )}
           {procError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 flex items-center gap-2 animate-in fade-in duration-200">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               {procError}
             </div>
           )}
 
-          {/* Form para adicionar procedimento */}
+          {/* Form para adicionar procedimento manual */}
           <form onSubmit={handleAddProcedimento} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
             <datalist id="lista-sugestoes-procedimentos">
-              {SUGESTOES_PROCEDIMENTOS.map((s, idx) => (
+              {CATALOGO_PROCEDIMENTOS.map((s, idx) => (
                 <option key={idx} value={s.nome} />
               ))}
             </datalist>
@@ -969,11 +1124,11 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={savingProc}
-                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 title="Adicionar Procedimento"
               >
                 {savingProc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span className="sm:hidden">Adicionar</span>
+                <span>Adicionar</span>
               </button>
             </div>
           </form>
@@ -1804,6 +1959,353 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GAVETA LATERAL: CATÁLOGO COMPLETO DE PROCEDIMENTOS (A-Z) */}
+      {showDrawerCatalogo && (
+        <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-200">
+          {/* Backdrop escuro */}
+          <div
+            onClick={() => setShowDrawerCatalogo(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+          />
+
+          {/* Painel lateral que desliza da direita ("abre do lado") */}
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-4 sm:pl-10">
+            <div className="w-screen max-w-lg sm:max-w-xl bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+              
+              {/* TOPO DA GAVETA */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/80">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-[#147A44] flex items-center justify-center shrink-0">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-slate-800 text-base">Catálogo de Procedimentos</h2>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                          A - Z
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Mais de 70 procedimentos veterinários em ordem alfabética. Preencha o valor e adicione com 1 clique.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDrawerCatalogo(false)}
+                    className="w-8 h-8 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    title="Fechar catálogo"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* BARRA DE PESQUISA */}
+                <div className="mt-4 relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={buscaCatalogo}
+                    onChange={(e) => setBuscaCatalogo(e.target.value)}
+                    placeholder="Buscar por nome ou categoria (ex: vacina, castração, ultrassom)..."
+                    className="w-full pl-9 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500 shadow-2xs"
+                  />
+                  {buscaCatalogo && (
+                    <button
+                      onClick={() => setBuscaCatalogo('')}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* FILTRO ALFABÉTICO (A-Z) */}
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    <span>Filtrar por Inicial:</span>
+                    {letraFiltro !== 'TODAS' && (
+                      <button
+                        onClick={() => setLetraFiltro('TODAS')}
+                        className="text-emerald-700 hover:underline cursor-pointer lowercase"
+                      >
+                        limpar filtro
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
+                    <button
+                      type="button"
+                      onClick={() => setLetraFiltro('TODAS')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        letraFiltro === 'TODAS'
+                          ? 'bg-[#147A44] text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {LETRAS_ALFABETO.map(letra => (
+                      <button
+                        key={letra}
+                        type="button"
+                        onClick={() => setLetraFiltro(letra)}
+                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center justify-center cursor-pointer ${
+                          letraFiltro === letra
+                            ? 'bg-[#147A44] text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {letra}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* FILTRO DE CATEGORIAS */}
+                <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {['TODAS', 'Consulta', 'Vacinação', 'Cirurgia', 'Exame', 'Emergência', 'Estética'].map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategoriaFiltro(cat)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all shrink-0 cursor-pointer ${
+                        categoriaFiltro === cat
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat === 'TODAS' ? 'Todas Categorias' : cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* LISTAGEM DE PROCEDIMENTOS DO CATÁLOGO (SCROLLÁVEL) */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+                  <span>Mostrando {filteredCatalogo.length} procedimentos</span>
+                  <span className="text-emerald-700 font-bold">{procedimentos.length} na sua tabela</span>
+                </div>
+
+                {filteredCatalogo.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                      <Search className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Nenhum procedimento encontrado</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Não encontrou o que procura? <strong>Tudo bem!</strong> Você pode cadastrar qualquer procedimento personalizado logo abaixo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCustomFormDrawer(true);
+                        setCustomDrawerNome(buscaCatalogo);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#147A44] text-white font-bold text-xs hover:bg-[#11693A] transition-all cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Cadastrar Personalizado</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {filteredCatalogo.map((item, idx) => {
+                      const jaCadastrado = procedimentos.find(
+                        p => p.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()
+                      );
+                      const precoDigitado = precosCatalogo[item.nome] !== undefined 
+                        ? precosCatalogo[item.nome] 
+                        : (item.valorSugerido || '150,00');
+                      const isAdding = addingProcNome === item.nome;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3.5 rounded-2xl border transition-all ${
+                            jaCadastrado
+                              ? 'bg-emerald-50/40 border-emerald-200'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-2.5">
+                              <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                {item.nome.trim()[0].toUpperCase()}
+                              </span>
+                              <div>
+                                <h3 className="text-xs font-bold text-slate-800 leading-snug">
+                                  {item.nome}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                                    {item.categoria}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                                    <Clock className="w-3 h-3" /> {item.tempo} min
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ações de inclusão / status */}
+                            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                              {jaCadastrado ? (
+                                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-xl">
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Cadastrado (R$ {Number(jaCadastrado.preco).toFixed(2).replace('.', ',')})</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                                  <div className="relative flex-1 sm:w-24">
+                                    <span className="absolute left-2 top-2 text-[10px] font-bold text-slate-400">R$</span>
+                                    <input
+                                      type="text"
+                                      value={precoDigitado}
+                                      onChange={(e) => setPrecosCatalogo({ ...precosCatalogo, [item.nome]: e.target.value })}
+                                      placeholder="150,00"
+                                      className="w-full pl-6 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-emerald-500 text-right"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={isAdding}
+                                    onClick={() => handleAddProcedimentoFromCatalogo(item)}
+                                    className="px-3 py-1.5 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shrink-0 shadow-2xs"
+                                  >
+                                    {isAdding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                    <span>Adicionar</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO INFERIOR: "SE NÃO EXISTIR TUDO BEM" (CADASTRAR PERSONALIZADO) */}
+              <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50">
+                {!showCustomFormDrawer ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Não encontrou o procedimento?</p>
+                      <p className="text-[11px] text-slate-500">Tudo bem! Cadastre qualquer serviço personalizado.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomFormDrawer(true)}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Cadastrar Personalizado</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleAddCustomProcedimentoDrawer} className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Novo Procedimento Personalizado</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomFormDrawer(false)}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Nome do Procedimento</label>
+                      <input
+                        type="text"
+                        value={customDrawerNome}
+                        onChange={(e) => setCustomDrawerNome(e.target.value)}
+                        placeholder="Ex: Ozonioterapia, Acupuntura, etc."
+                        required
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
+                        <select
+                          value={customDrawerCategoria}
+                          onChange={(e) => setCustomDrawerCategoria(e.target.value)}
+                          className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                        >
+                          <option value="Consulta">Consulta</option>
+                          <option value="Vacinação">Vacinação</option>
+                          <option value="Cirurgia">Cirurgia</option>
+                          <option value="Exame">Exame</option>
+                          <option value="Emergência">Emergência</option>
+                          <option value="Estética">Estética</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Duração (min)</label>
+                        <input
+                          type="number"
+                          min="5"
+                          step="5"
+                          value={customDrawerTempo}
+                          onChange={(e) => setCustomDrawerTempo(e.target.value)}
+                          className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Valor (R$)</label>
+                        <input
+                          type="text"
+                          value={customDrawerPreco}
+                          onChange={(e) => setCustomDrawerPreco(e.target.value)}
+                          placeholder="150,00"
+                          required
+                          className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomFormDrawer(false)}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingCustomDrawer}
+                        className="px-4 py-1.5 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {savingCustomDrawer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>Adicionar à Tabela</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+            </div>
           </div>
         </div>
       )}
