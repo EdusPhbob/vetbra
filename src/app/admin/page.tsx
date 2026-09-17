@@ -619,7 +619,13 @@ export default function AdminCrmvModerationPage() {
                         
                         {/* Informações Principais */}
                         <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
+                          <a 
+                            href={`/vets/${vet.slug}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative block group hover:border-emerald-500 hover:scale-105 transition-all cursor-pointer"
+                            title="Ver perfil do veterinário"
+                          >
                             {vet.fotoPerfilUrl ? (
                               <img src={vet.fotoPerfilUrl} alt={vet.nomeCompleto} className="w-full h-full object-cover" />
                             ) : (
@@ -628,11 +634,20 @@ export default function AdminCrmvModerationPage() {
                             {isOnline && (
                               <span className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-600" title="Online Agora" />
                             )}
-                          </div>
+                          </a>
 
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-base font-bold text-slate-900">{vet.nomeCompleto}</h3>
+                              <a
+                                href={`/vets/${vet.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-base font-bold text-slate-900 hover:text-emerald-700 hover:underline transition-colors flex items-center gap-1.5 group cursor-pointer"
+                                title="Abrir perfil público em nova aba"
+                              >
+                                <span>{vet.nomeCompleto}</span>
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                              </a>
 
                               {/* Selo Novo Cadastro */}
                               {isNovo && (
@@ -1012,6 +1027,18 @@ export default function AdminCrmvModerationPage() {
                       {/* BOTÕES DE MODERAÇÃO E CONTROLE TOTAL */}
                       <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
+                          {/* Acessar Perfil do Veterinário */}
+                          <a
+                            href={`/vets/${vet.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#147A44] border border-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs hover:scale-[1.02] cursor-pointer"
+                            title="Acessar o perfil público completo do veterinário em nova aba"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-[#147A44]" />
+                            <span>Acessar Perfil</span>
+                          </a>
+
                           {/* Checar CFMV */}
                           <a
                             href={getCfmvConsultaUrl(vet.crmvNumero, vet.crmvUf)}
