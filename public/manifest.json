@@ -1,0 +1,33 @@
+{
+  "name": "VetBra – Veterinária Mais Perto De Você",
+  "short_name": "VetBra",
+  "description": "Encontre veterinários com CRMV verificado no CFMV em todo o Brasil.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#147A44",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-vetbra.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["medical", "health", "lifestyle"],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg"
+    }
+  ]
+}
