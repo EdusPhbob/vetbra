@@ -96,12 +96,23 @@ export default async function HomePage() {
       <Header />
 
       {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white pt-12 pb-20 border-b border-slate-200">
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white pt-10 pb-16 border-b border-slate-200">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center max-w-4xl mx-auto space-y-4">
             
+            {/* BOTÃO DE CADASTRO DO VETERINÁRIO/CLÍNICA NO TOPO */}
+            <div className="flex justify-center pb-2">
+              <Link
+                href="/cadastro"
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300/80 font-bold text-xs sm:text-sm shadow-xs transition-all hover:scale-105"
+              >
+                <Stethoscope className="w-4 h-4 text-[#147A44]" />
+                É Médico Veterinário ou Clínica? Cadastre-se aqui
+              </Link>
+            </div>
+
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
               Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
             </h1>
@@ -110,26 +121,18 @@ export default async function HomePage() {
               A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
             </p>
 
-            {/* BARRA DE BUSCA PRINCIPAL COM GEOLOCALIZAÇÃO, SELETOR DE PET E CEP */}
+            {/* BARRA DE BUSCA PRINCIPAL COM SELETOR DE PET, ESPECIALIDADE E CEP */}
             <HeroSearch />
-
-            {/* BOTÃO DE CADASTRO DE VETERINÁRIO OU CLÍNICA */}
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/cadastro"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.02]"
-              >
-                <Stethoscope className="w-4 h-4 text-[#147A44]" />
-                É Médico Veterinário ou Clínica? Cadastre-se aqui
-              </Link>
-            </div>
 
           </div>
         </div>
       </section>
 
+      {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E RAIO EM KM (DIRETO ABAIXO DA BUSCA) */}
+      <VetMapExplorer vets={todosVets} />
+
       {/* STATS STRIP (CLEAN & DINÂMICO ESTILO APPLE) */}
-      <section className="bg-slate-50/70 border-y border-slate-200/80 py-12">
+      <section className="bg-slate-50/70 border-b border-slate-200/80 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
@@ -248,9 +251,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* MAPA INTERATIVO COM GEOLOCALIZAÇÃO E RAIO EM KM */}
-      <VetMapExplorer vets={todosVets} />
 
       {/* VETERINÁRIOS EM DESTAQUE (DO BANCO POSTGRESQL REAL) */}
       <section className="py-20 bg-white">
