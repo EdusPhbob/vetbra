@@ -95,8 +95,8 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Header />
 
-      {/* HERO SECTION PRINCIPAL (100% DA ALTURA DA TELA - SEM EXIBIR O MAPA NO CARREGAMENTO INICIAL) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] lg:h-[calc(100vh-84px)] flex flex-col justify-between py-6 sm:py-8 border-b border-slate-200">
+      {/* HERO SECTION PRINCIPAL (100% DA ALTURA DA TELA - SEM CORTAR CARDS OU EXIBIR MAPA) */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] flex flex-col justify-between py-4 sm:py-6 border-b border-slate-200">
         
         {/* BACKGROUND GRID SUAVE */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
@@ -106,36 +106,36 @@ export default async function HomePage() {
           <img
             src="/logo-vetbra.jpg"
             alt=""
-            className="w-[480px] h-[480px] sm:w-[650px] sm:h-[650px] object-cover rounded-full opacity-[0.05] blur-[1px] scale-110"
+            className="w-[420px] h-[420px] sm:w-[580px] sm:h-[580px] object-cover rounded-full opacity-[0.05] blur-[1px] scale-105"
           />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-2 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
           {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
-          <div className="text-center max-w-4xl mx-auto space-y-4 my-auto">
+          <div className="text-center max-w-4xl mx-auto space-y-3 my-auto">
             
             {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
-            <div className="flex justify-center pb-0.5">
+            <div className="flex justify-center">
               <Link
                 href="/cadastro"
-                className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all hover:scale-[1.03] group relative overflow-hidden"
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs shadow-xs hover:shadow-md transition-all hover:scale-[1.02] group relative overflow-hidden"
               >
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#147A44]"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#147A44]"></span>
                 </span>
-                <Stethoscope className="w-4 h-4 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
+                <Stethoscope className="w-3.5 h-3.5 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
                 <span>É Médico Veterinário ou Clínica? Cadastre-se aqui</span>
-                <ChevronRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
+                <ChevronRight className="w-3 h-3 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
               </Link>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
               Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
             </h1>
 
-            <p className="text-sm sm:text-base lg:text-lg text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
               A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
             </p>
 
@@ -146,84 +146,84 @@ export default async function HomePage() {
 
           {/* CARDS DE ESTATÍSTICAS (SEÇÃO INTEGRADA NO LIMITE INFERIOR DA PRIMEIRA TELA) */}
           <div className="max-w-7xl mx-auto w-full pt-1 pb-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               
               {/* Card 1: Vets Cadastrados */}
-              <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
-                    <Stethoscope className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                    <Stethoscope className="w-4 h-4" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/60">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/60">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Ativos hoje
                   </span>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
                     +3.500
                   </div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                     Veterinários Cadastrados
                   </div>
                 </div>
               </div>
 
               {/* Card 2: CRMV Auditado */}
-              <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
-                    <ShieldCheck className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
                     CFMV / Siscad
                   </span>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl font-black text-[#147A44] tracking-tight">
+                  <div className="text-2xl sm:text-3xl font-black text-[#147A44] tracking-tight">
                     100%
                   </div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                     CRMV Auditado no CFMV
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Pets Atendidos */}
-              <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-300 transition-all group flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    <Users className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <Users className="w-4 h-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
                     Em todo o Brasil
                   </span>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
                     +120 mil
                   </div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                     Pets Atendidos
                   </div>
                 </div>
               </div>
 
               {/* Card 4: Avaliação */}
-              <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-amber-300 transition-all group flex flex-col justify-between space-y-4">
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-amber-300 transition-all group flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
-                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
                     5 Estrelas
                   </span>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
-                    4.9 <span className="text-amber-400 text-2xl">★</span>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
+                    4.9 <span className="text-amber-400 text-xl">★</span>
                   </div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                     Avaliação dos Tutores
                   </div>
                 </div>
