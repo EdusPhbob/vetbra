@@ -95,14 +95,25 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Header />
 
-      {/* HERO SECTION PRINCIPAL (COM LAYOUT FLUIDO E ESPAÇAMENTO NATURAL) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white py-6 sm:py-10 lg:py-12 border-b border-slate-200">
+      {/* HERO SECTION PRINCIPAL (100% DA ALTURA DA TELA - SEM EXIBIR O MAPA NO CARREGAMENTO INICIAL) */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white min-h-[calc(100vh-80px)] lg:h-[calc(100vh-84px)] flex flex-col justify-between py-6 sm:py-8 border-b border-slate-200">
+        
+        {/* BACKGROUND GRID SUAVE */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full space-y-6 sm:space-y-8">
+        {/* LOGO OFICIAL VETBRA COMO MARCA D'ÁGUA ELEGANTE NO FUNDO */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
+          <img
+            src="/logo-vetbra.jpg"
+            alt=""
+            className="w-[480px] h-[480px] sm:w-[650px] sm:h-[650px] object-cover rounded-full opacity-[0.05] blur-[1px] scale-110"
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-2 space-y-6">
           
           {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
-          <div className="text-center max-w-4xl mx-auto space-y-4">
+          <div className="text-center max-w-4xl mx-auto space-y-4 my-auto">
             
             {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
             <div className="flex justify-center pb-0.5">
@@ -133,8 +144,8 @@ export default async function HomePage() {
 
           </div>
 
-          {/* CARDS DE ESTATÍSTICAS (SEÇÃO INTEGRADA SEM ESPAÇOS ESTRANHOS) */}
-          <div className="max-w-7xl mx-auto w-full pt-1">
+          {/* CARDS DE ESTATÍSTICAS (SEÇÃO INTEGRADA NO LIMITE INFERIOR DA PRIMEIRA TELA) */}
+          <div className="max-w-7xl mx-auto w-full pt-1 pb-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               
               {/* Card 1: Vets Cadastrados */}
