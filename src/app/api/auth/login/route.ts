@@ -127,12 +127,15 @@ export async function POST(request: Request) {
       redirectTo: user.role === 'ADMIN' ? '/admin' : '/dashboard'
     });
 
+    // Protocolo da requisição (compatível com Cloudflare, proxy reverso e rede local)
+    const isHttps = request.headers.get('x-forwarded-proto') === 'https' || request.url.startsWith('https:');
+
     // Define cookie HTTP-Only seguro (7 dias)
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,

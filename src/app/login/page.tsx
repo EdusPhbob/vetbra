@@ -89,12 +89,12 @@ function LoginForm() {
         return;
       }
 
-      // Sucesso no login!
-      if (data.redirectTo) {
-        router.push(data.redirectTo);
-      } else {
-        router.push(redirectPath);
-      }
+      // Sucesso no login! Redirecionamento completo do navegador para atualizar os cookies de sessão
+      const destino = (redirectPath && redirectPath !== '/login' && redirectPath !== '/')
+        ? redirectPath
+        : (data.redirectTo || (data.user?.role === 'ADMIN' ? '/admin' : '/dashboard'));
+
+      window.location.href = destino;
     } catch (err: any) {
       console.error('Erro de conexão no login:', err);
       setErrorMsg('Falha de conexão com o servidor. Tente novamente.');
