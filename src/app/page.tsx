@@ -30,33 +30,92 @@ import {
 export const revalidate = 60; // Regeneração ISR a cada 60s para SEO máximo
 
 export default async function HomePage() {
-  // Puxa os veterinários em destaque diretamente do PostgreSQL do Coolify
-  const rawVetsDestaque = await prisma.veterinario.findMany({
-    where: { crmvStatus: 'VERIFICADO' },
-    include: {
-      enderecos: true,
-      especialidades: { include: { especialidade: true } },
-      procedimentos: { where: { ativo: true } },
-      avaliacoes: true
-    },
-    take: 6,
-    orderBy: [{ destaqueBusca: 'desc' }, { visualizacoesCount: 'desc' }]
+  // 1. Total real de veterinários cadastrados com CRMV ativo e verificado
+  const totalVetsCadastrados = await prisma.veterinario.count({
+    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' }
   });
 
-  // Todos os veterinários verificados para o mapa interativo
-  const rawTodosVets = await prisma.veterinario.findMany({
-    where: { crmvStatus: 'VERIFICADO' },
+  // 2. Total de animais/pets atendidos = número real de comentários/avaliações recebidas no portal
+  const totalAnimaisAtendidos = await prisma.avaliacao.count({
+    where: { status: 'PUBLICADA' }
+  });
+
+  // 3. Média geral de avaliações de todos os veterinários
+  const avgAvaliacoes = await prisma.avaliacao.aggregate({
+    where: { status: 'PUBLICADA' },
+    _avg: { nota: true }
+  });
+  const mediaNotaGeral = totalAnimaisAtendidos > 0 && avgAvaliacoes._avg.nota
+    ? avgAvaliacoes._avg.nota.toFixed(1)
+    : '0.0';
+
+  // 4. Puxa os veterinários verificados priorizando plano PREMIUM, depois estrelas
+  const rawVetsDestaque = await prisma.veterinario.findMany({
+    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' },
     include: {
       enderecos: true,
       especialidades: { include: { especialidade: true } },
       procedimentos: { where: { ativo: true } },
-      avaliacoes: true
+      avaliacoes: { where: { status: 'PUBLICADA' } },
+      assinaturas: {
+        where: { status: 'ATIVA' },
+        include: { plano: true },
+        take: 1
+      }
     }
   });
 
-  // Veterinários recém-cadastrados (Novos perfis no VetBra)
+  // Ordenação com regra de ouro:
+  // 1º Plano Premium sempre na frente (depois Profissional, depois Básico)
+  // 2º Profissionais com mais estrelas/avaliações
+  // 3º Mais visualizações
+  const sortedRawVets = [...rawVetsDestaque].sort((a, b) => {
+    const getPlanoWeight = (vet: any) => {
+      const slug = (vet.assinaturas?.[0]?.plano?.slug || '').toLowerCase();
+      if (slug.includes('premium')) return 3;
+      if (slug.includes('profissional')) return 2;
+      if (slug.includes('basico')) return 1;
+      if (vet.destaqueBusca) return 3;
+      return 0;
+    };
+    const pDiff = getPlanoWeight(b) - getPlanoWeight(a);
+    if (pDiff !== 0) return pDiff;
+
+    const mediaA = a.avaliacoes.length > 0
+      ? a.avaliacoes.reduce((acc: number, x: any) => acc + x.nota, 0) / a.avaliacoes.length
+      : 0;
+    const mediaB = b.avaliacoes.length > 0
+      ? b.avaliacoes.reduce((acc: number, x: any) => acc + x.nota, 0) / b.avaliacoes.length
+      : 0;
+    const mDiff = mediaB - mediaA;
+    if (mDiff !== 0) return mDiff;
+
+    return (b.visualizacoesCount || 0) - (a.visualizacoesCount || 0);
+  });
+
+  const formatVet = (v: any) => ({
+    ...v,
+    especialidades: v.especialidades?.map((ve: any) => ve.especialidade || ve) || [],
+    plano: v.assinaturas?.[0]?.plano?.slug?.toUpperCase() || (v.destaqueBusca ? 'PREMIUM' : 'BASICO')
+  });
+
+  const vetsDestaque = sortedRawVets.slice(0, 6).map(formatVet);
+
+  // Todos os veterinários verificados para o mapa interativo
+  const rawTodosVets = await prisma.veterinario.findMany({
+    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' },
+    include: {
+      enderecos: true,
+      especialidades: { include: { especialidade: true } },
+      procedimentos: { where: { ativo: true } },
+      avaliacoes: { where: { status: 'PUBLICADA' } }
+    }
+  });
+  const todosVets = rawTodosVets.map(formatVet);
+
+  // Novos perfis no VetBra
   const rawNovosVets = await prisma.veterinario.findMany({
-    where: { crmvStatus: 'VERIFICADO' },
+    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' },
     include: {
       enderecos: true,
       especialidades: { include: { especialidade: true } }
@@ -64,17 +123,9 @@ export default async function HomePage() {
     orderBy: { createdAt: 'desc' },
     take: 6
   });
-
-  const formatVet = (v: any) => ({
-    ...v,
-    especialidades: v.especialidades?.map((ve: any) => ve.especialidade || ve) || []
-  });
-
-  const vetsDestaque = rawVetsDestaque.map(formatVet);
-  const todosVets = rawTodosVets.map(formatVet);
   const novosVets = rawNovosVets.map(formatVet);
 
-  // Artigos recentes do Blog publicados pelos veterinários
+  // Artigos reais do Blog
   const artigos = await prisma.artigo.findMany({
     where: { publicado: true },
     include: {
@@ -84,8 +135,9 @@ export default async function HomePage() {
     take: 3
   });
 
-  // Avaliações mais recentes de tutores
+  // Avaliações reais de tutores
   const avaliacoes = await prisma.avaliacao.findMany({
+    where: { status: 'PUBLICADA' },
     include: {
       veterinario: true
     },
@@ -163,10 +215,10 @@ export default async function HomePage() {
                 </div>
                 <div>
                   <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-[#147A44] transition-colors">
-                    +3.500
+                    {totalVetsCadastrados}
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                    Veterinários Cadastrados
+                    {totalVetsCadastrados === 1 ? 'Veterinário Cadastrado' : 'Veterinários Cadastrados'}
                   </div>
                 </div>
               </div>
@@ -203,10 +255,10 @@ export default async function HomePage() {
                 </div>
                 <div>
                   <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                    +120 mil
+                    {totalAnimaisAtendidos}
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                    Pets Atendidos
+                    {totalAnimaisAtendidos === 1 ? 'Animal Atendido' : 'Animais Atendidos'}
                   </div>
                 </div>
               </div>
@@ -218,15 +270,15 @@ export default async function HomePage() {
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
-                    5 Estrelas
+                    {totalAnimaisAtendidos > 0 ? 'Avaliações Reais' : 'Novo Portal'}
                   </span>
                 </div>
                 <div>
                   <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-1 group-hover:text-amber-500 transition-colors">
-                    4.9 <span className="text-amber-400 text-xl">★</span>
+                    {mediaNotaGeral} <span className="text-amber-400 text-xl">★</span>
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                    Avaliação dos Tutores
+                    Média de Avaliações
                   </div>
                 </div>
               </div>
@@ -287,11 +339,32 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vetsDestaque.map((vet) => (
-              <VetCard key={vet.id} vet={vet} />
-            ))}
-          </div>
+          {vetsDestaque.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {vetsDestaque.map((vet) => (
+                <VetCard key={vet.id} vet={vet} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 px-6 bg-slate-50/80 rounded-3xl border-2 border-dashed border-slate-200 max-w-2xl mx-auto space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-[#147A44] flex items-center justify-center mx-auto">
+                <Stethoscope className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900">Seja o primeiro profissional credenciado na sua cidade</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Cadastre seu consultório, clínica ou atendimento domiciliar com CRMV verificado e ganhe destaque regional exclusivo.
+                </p>
+              </div>
+              <Link
+                href="/cadastro"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                Cadastrar Meu Consultório ou Clínica
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -350,184 +423,192 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* BLOG PARA TUTORES & OPINIÕES MAIS RECENTES */}
-      <section id="blog-tutores" className="py-16 bg-white border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
-            
-            {/* Coluna 1: Blog para pacientes / tutores */}
-            <div className="space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Blog para pacientes</h2>
-                <Link href="/buscar" className="text-xs font-bold text-[#147A44] hover:underline flex items-center gap-1">
-                  Ver todos os artigos <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              <div className="space-y-6">
-                {artigos.map((artigo) => (
-                  <div key={artigo.id} className="space-y-2 group">
-                    <div className="flex items-start gap-3">
-                      {artigo.veterinario?.fotoPerfilUrl ? (
-                        <img
-                          src={artigo.veterinario.fotoPerfilUrl}
-                          alt={artigo.veterinario.nomeCompleto}
-                          className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200 mt-1"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0 mt-1">
-                          {artigo.veterinario?.nomeCompleto?.charAt(0) || 'V'}
-                        </div>
-                      )}
-
-                      <div className="space-y-1">
-                        <Link href={`/vets/${artigo.veterinario?.slug || ''}`}>
-                          <h3 className="text-base font-bold text-[#147A44] group-hover:text-emerald-600 transition-colors leading-snug">
-                            {artigo.titulo}
-                          </h3>
-                        </Link>
-                        <p className="text-xs text-slate-500 font-medium">
-                          De <span className="text-slate-700 font-semibold">{artigo.veterinario?.nomeCompleto}</span>
-                        </p>
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                          {artigo.resumo}
-                        </p>
-                        <div className="pt-1">
-                          <Link 
-                            href={`/buscar?especialidade=${encodeURIComponent(artigo.categoria)}`}
-                            className="text-xs font-semibold text-[#147A44] hover:underline"
-                          >
-                            Todos os textos sobre <span className="font-bold">{artigo.categoria}</span>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Coluna 2: Opiniões mais recentes */}
-            <div className="space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Opiniões mais recentes</h2>
-                <span className="text-xs font-semibold text-slate-400">Avaliações verificadas</span>
-              </div>
-
-              <div className="space-y-6">
-                {avaliacoes.map((av) => (
-                  <div key={av.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        {av.veterinario?.fotoPerfilUrl ? (
-                          <img
-                            src={av.veterinario.fotoPerfilUrl}
-                            alt={av.veterinario.nomeCompleto}
-                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
-                            {av.veterinario?.nomeCompleto?.charAt(0) || 'V'}
-                          </div>
-                        )}
-                        <span className="text-sm font-bold text-slate-900">
-                          {av.veterinario?.nomeCompleto}
-                        </span>
-                      </div>
-
-                      {/* Estrelas Verdes */}
-                      <div className="flex items-center gap-0.5 text-emerald-600">
-                        {Array.from({ length: av.nota || 5 }).map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-emerald-600 text-emerald-600" />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Balão de Depoimento Cinza Claro */}
-                    <div className="bg-slate-100/80 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed">
-                      <p>"{av.comentario}"</p>
-                      <p className="mt-2 text-slate-400 italic text-[11px] font-medium">
-                        {av.nomeTutor}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* NOVOS PERFIS NO VETBRA (CADASTROS RECENTES DO BANCO) */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Novos perfis no VetBra</h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Médicos veterinários auditados e recém-integrados à plataforma.
-              </p>
-            </div>
-            <Link href="/buscar" className="text-xs font-bold text-[#147A44] hover:underline flex items-center gap-1">
-              Ver todos <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Cards dos novos veterinários */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {novosVets.map((novVet) => {
-              const espPrincipal = novVet.especialidades?.[0]?.nome || 'Clínica Geral';
-              const endPrincipal = novVet.enderecos?.[0];
-              const localidade = endPrincipal ? `${endPrincipal.cidade}, ${endPrincipal.estado}` : 'São Paulo, SP';
-
-              return (
-                <div
-                  key={novVet.id}
-                  className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all bg-white flex items-center gap-3.5"
-                >
-                  {novVet.fotoPerfilUrl ? (
-                    <img
-                      src={novVet.fotoPerfilUrl}
-                      alt={novVet.nomeCompleto}
-                      className="w-14 h-14 rounded-full object-cover shrink-0 border border-slate-100"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold text-lg shrink-0">
-                      {novVet.nomeCompleto.charAt(0)}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <h3 className="text-sm font-bold text-slate-900 truncate" title={novVet.nomeCompleto}>
-                      {novVet.nomeCompleto}
-                    </h3>
-                    <p className="text-xs text-slate-500 truncate">
-                      {espPrincipal}, {localidade}
-                    </p>
-                    <Link
-                      href={`/vets/${novVet.slug}`}
-                      className="text-xs font-semibold text-[#147A44] hover:underline block pt-1"
-                    >
-                      Mostrar perfil
+      {/* BLOG PARA TUTORES & OPINIÕES MAIS RECENTES (SOMENTE SE HOUVER REGISTROS REAIS) */}
+      {(artigos.length > 0 || avaliacoes.length > 0) && (
+        <section id="blog-tutores" className="py-16 bg-white border-b border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+              
+              {/* Coluna 1: Blog para pacientes / tutores */}
+              {artigos.length > 0 ? (
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Blog para pacientes</h2>
+                    <Link href="/buscar" className="text-xs font-bold text-[#147A44] hover:underline flex items-center gap-1">
+                      Ver todos os artigos <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
+
+                  <div className="space-y-6">
+                    {artigos.map((artigo) => (
+                      <div key={artigo.id} className="space-y-2 group">
+                        <div className="flex items-start gap-3">
+                          {artigo.veterinario?.fotoPerfilUrl ? (
+                            <img
+                              src={artigo.veterinario.fotoPerfilUrl}
+                              alt={artigo.veterinario.nomeCompleto}
+                              className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200 mt-1"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0 mt-1">
+                              {artigo.veterinario?.nomeCompleto?.charAt(0) || 'V'}
+                            </div>
+                          )}
+
+                          <div className="space-y-1">
+                            <Link href={`/vets/${artigo.veterinario?.slug || ''}`}>
+                              <h3 className="text-base font-bold text-[#147A44] group-hover:text-emerald-600 transition-colors leading-snug">
+                                {artigo.titulo}
+                              </h3>
+                            </Link>
+                            <p className="text-xs text-slate-500 font-medium">
+                              De <span className="text-slate-700 font-semibold">{artigo.veterinario?.nomeCompleto}</span>
+                            </p>
+                            <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                              {artigo.resumo}
+                            </p>
+                            <div className="pt-1">
+                              <Link 
+                                href={`/buscar?especialidade=${encodeURIComponent(artigo.categoria)}`}
+                                className="text-xs font-semibold text-[#147A44] hover:underline"
+                              >
+                                Todos os textos sobre <span className="font-bold">{artigo.categoria}</span>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              ) : null}
 
-          {/* Indicadores sutis de carrossel estilo Doctoralia */}
-          <div className="flex items-center justify-center gap-1.5 pt-2">
-            <span className="w-2 h-2 rounded-full bg-[#147A44]"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-          </div>
+              {/* Coluna 2: Opiniões mais recentes */}
+              {avaliacoes.length > 0 ? (
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Opiniões mais recentes</h2>
+                    <span className="text-xs font-semibold text-slate-400">Avaliações verificadas</span>
+                  </div>
 
-        </div>
-      </section>
+                  <div className="space-y-6">
+                    {avaliacoes.map((av) => (
+                      <div key={av.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            {av.veterinario?.fotoPerfilUrl ? (
+                              <img
+                                src={av.veterinario.fotoPerfilUrl}
+                                alt={av.veterinario.nomeCompleto}
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
+                                {av.veterinario?.nomeCompleto?.charAt(0) || 'V'}
+                              </div>
+                            )}
+                            <span className="text-sm font-bold text-slate-900">
+                              {av.veterinario?.nomeCompleto}
+                            </span>
+                          </div>
+
+                          {/* Estrelas Verdes */}
+                          <div className="flex items-center gap-0.5 text-emerald-600">
+                            {Array.from({ length: av.nota || 5 }).map((_, i) => (
+                              <Star key={i} className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Balão de Depoimento Cinza Claro */}
+                        <div className="bg-slate-100/80 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed">
+                          <p>"{av.comentario}"</p>
+                          <p className="mt-2 text-slate-400 italic text-[11px] font-medium">
+                            {av.nomeTutor}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* NOVOS PERFIS NO VETBRA (SOMENTE SE HOUVER PERFIS REAIS CADASTRADOS) */}
+      {novosVets.length > 0 && (
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Novos perfis no VetBra</h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Médicos veterinários auditados e recém-integrados à plataforma.
+                </p>
+              </div>
+              <Link href="/buscar" className="text-xs font-bold text-[#147A44] hover:underline flex items-center gap-1">
+                Ver todos <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Cards dos novos veterinários */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {novosVets.map((novVet) => {
+                const espPrincipal = novVet.especialidades?.[0]?.nome || 'Clínica Geral';
+                const endPrincipal = novVet.enderecos?.[0];
+                const localidade = endPrincipal ? `${endPrincipal.cidade}, ${endPrincipal.estado}` : 'São Paulo, SP';
+
+                return (
+                  <div
+                    key={novVet.id}
+                    className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all bg-white flex items-center gap-3.5"
+                  >
+                    {novVet.fotoPerfilUrl ? (
+                      <img
+                        src={novVet.fotoPerfilUrl}
+                        alt={novVet.nomeCompleto}
+                        className="w-14 h-14 rounded-full object-cover shrink-0 border border-slate-100"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-emerald-50 text-[#147A44] flex items-center justify-center font-bold text-lg shrink-0">
+                        {novVet.nomeCompleto.charAt(0)}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <h3 className="text-sm font-bold text-slate-900 truncate" title={novVet.nomeCompleto}>
+                        {novVet.nomeCompleto}
+                      </h3>
+                      <p className="text-xs text-slate-500 truncate">
+                        {espPrincipal}, {localidade}
+                      </p>
+                      <Link
+                        href={`/vets/${novVet.slug}`}
+                        className="text-xs font-semibold text-[#147A44] hover:underline block pt-1"
+                      >
+                        Mostrar perfil
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Indicadores sutis de carrossel estilo Doctoralia */}
+            <div className="flex items-center justify-center gap-1.5 pt-2">
+              <span className="w-2 h-2 rounded-full bg-[#147A44]"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+            </div>
+
+          </div>
+        </section>
+      )}
 
       {/* SEÇÃO DE PLANOS TRANSPARENTES PARA VETERINÁRIOS & CLÍNICAS */}
       <section className="bg-slate-50 py-20 border-t border-slate-200">
