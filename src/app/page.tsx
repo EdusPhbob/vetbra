@@ -102,40 +102,41 @@ export default async function HomePage() {
         {/* BACKGROUND GRID SUAVE */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#147a440a_1px,transparent_1px),linear-gradient(to_bottom,#147a440a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        {/* LOGO VIBRANTE CENTRALIZADO DE FUNDO (COM EFEITO DE DESAPARECER AO ROLAR O MAPA) */}
-        <HeroCenteredLogo />
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative w-full flex-1 flex flex-col justify-between py-1 space-y-4">
           
-          {/* CONTEÚDO CENTRALIZADO (Pill Animada, Título, Subtítulo e Busca) */}
-          <div className="text-center max-w-4xl mx-auto space-y-3 my-auto">
+          {/* CONTEÚDO CENTRALIZADO COM WIDESCREEN BANNER E TRANSIÇÃO DE TEXTO */}
+          <div className="text-center max-w-4xl mx-auto space-y-3 my-auto w-full">
+            
+            <HeroCenteredLogo>
+              {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
+              <div className="flex justify-center">
+                <Link
+                  href="/cadastro"
+                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs shadow-md transition-all hover:scale-[1.02] group relative overflow-hidden"
+                >
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#147A44]"></span>
+                  </span>
+                  <Stethoscope className="w-3.5 h-3.5 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
+                  <span>É Médico Veterinário ou Clínica? Cadastre-se aqui</span>
+                  <ChevronRight className="w-3 h-3 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
+                </Link>
+              </div>
 
-            {/* BOTÃO ANIMADO DE CADASTRO DO VETERINÁRIO/CLÍNICA */}
-            <div className="flex justify-center">
-              <Link
-                href="/cadastro"
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white hover:bg-emerald-50 text-[#147A44] border border-emerald-300 font-bold text-xs shadow-xs hover:shadow-md transition-all hover:scale-[1.02] group relative overflow-hidden"
-              >
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#147A44]"></span>
-                </span>
-                <Stethoscope className="w-3.5 h-3.5 text-[#147A44] group-hover:rotate-12 transition-transform shrink-0" />
-                <span>É Médico Veterinário ou Clínica? Cadastre-se aqui</span>
-                <ChevronRight className="w-3 h-3 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
-              </Link>
-            </div>
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15] mt-3">
+                Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
+              </h1>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
-              Encontre veterinários perto de você em <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#147A44] to-[#1B85B8]">poucos segundos.</span>
-            </h1>
-
-            <p className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto">
-              A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
-            </p>
+              <p className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium leading-relaxed max-w-3xl mx-auto mt-2">
+                A maior plataforma brasileira para conectar tutores de pets aos melhores veterinários e clínicas veterinárias próximas.
+              </p>
+            </HeroCenteredLogo>
 
             {/* BARRA DE BUSCA PRINCIPAL COM SELETOR DE PET, ESPECIALIDADE E CEP */}
-            <HeroSearch />
+            <div className="relative z-20">
+              <HeroSearch />
+            </div>
 
           </div>
 
