@@ -226,6 +226,7 @@ model Veterinario {
   tickets               TicketSuporte[]
   atendimentosLeads     AtendimentoLead[]
   artigos               Artigo[]
+  registrosFinanceiros  RegistroFinanceiro[]
 
   @@unique([crmvNumero, crmvUf])
   @@index([crmvNumero, crmvUf])
@@ -662,4 +663,33 @@ model ConfiguracaoPagamento {
 
   updatedAt             DateTime  @updatedAt
   updatedBy             String?
+}
+
+// -------------------------------------------------------------
+// MÓDULO 10: FINANCEIRO DO VETERINÁRIO (RECEITAS & DESPESAS)
+// -------------------------------------------------------------
+
+enum TipoLancamentoFinanceiro {
+  RECEITA     // Atendimento, consulta, procedimento realizado
+  DESPESA     // Insumo, combustível, aluguel, material, etc.
+}
+
+model RegistroFinanceiro {
+  id            String    @id @default(uuid())
+  veterinarioId String
+  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  tipo          TipoLancamentoFinanceiro
+  descricao     String                   // ex: "Consulta - Rex (Labrador)", "Gasolina semana 1"
+  valor         Float                    // Valor em reais
+  data          DateTime                 @default(now()) // Data do lançamento/atendimento
+  paciente      String?                  // Nome do animal ou tutor (opcional)
+  categoria     String?                  // ex: "Atendimento", "Insumo", "Combustível", "Aluguel"
+  observacoes   String?                  @db.Text
+
+  createdAt     DateTime  @default(now())
+
+  @@index([veterinarioId])
+  @@index([veterinarioId, data])
+  @@index([tipo])
 }

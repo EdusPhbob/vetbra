@@ -134,6 +134,31 @@ export default function DashboardPage() {
   const [erroRespostaVet, setErroRespostaVet] = useState<string | null>(null);
   const [sucessoRespostaVet, setSucessoRespostaVet] = useState<string | null>(null);
 
+  // Módulo Financeiro (Receitas & Despesas)
+  const [registrosFinanceiros, setRegistrosFinanceiros] = useState<any[]>([]);
+  const [resumoFinanceiro, setResumoFinanceiro] = useState<{
+    totalReceitas: number;
+    totalDespesas: number;
+    lucroLiquido: number;
+    qtdAtendimentos: number;
+    mediaAtendimento: number;
+    margemLucro: number;
+  } | null>(null);
+  const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
+  const [mesFiltroFinanceiro, setMesFiltroFinanceiro] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [novoLancTipo, setNovoLancTipo] = useState<'RECEITA' | 'DESPESA'>('RECEITA');
+  const [novoLancDescricao, setNovoLancDescricao] = useState('');
+  const [novoLancValor, setNovoLancValor] = useState('');
+  const [novoLancData, setNovoLancData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [novoLancPaciente, setNovoLancPaciente] = useState('');
+  const [novoLancCategoria, setNovoLancCategoria] = useState('Atendimento');
+  const [savingLanc, setSavingLanc] = useState(false);
+  const [lancError, setLancError] = useState<string | null>(null);
+  const [lancSuccess, setLancSuccess] = useState<string | null>(null);
+
   // Edição de Perfil com Bloqueio Anti-Fraude
   const [editForm, setEditForm] = useState({
     nomeSocialOuClinica: '',
@@ -254,6 +279,83 @@ export default function DashboardPage() {
     loadVetData();
     loadTickets();
   }, []);
+
+  const loadFinanceiro = async (mes?: string) => {
+    setLoadingFinanceiro(true);
+    try {
+      const mesParam = mes || mesFiltroFinanceiro;
+      const res = await fetch(`/api/dashboard/financeiro?mes=${mesParam}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRegistrosFinanceiros(data.registros || []);
+        setResumoFinanceiro(data.resumo || null);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar financeiro:', e);
+    } finally {
+      setLoadingFinanceiro(false);
+    }
+  };
+
+  useEffect(() => {
+    if (vet) loadFinanceiro();
+  }, [vet, mesFiltroFinanceiro]);
+
+  const handleAddLancamento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLancError(null);
+    setLancSuccess(null);
+    if (!novoLancDescricao.trim() || !novoLancValor) {
+      setLancError('Descrição e valor são obrigatórios.');
+      return;
+    }
+    setSavingLanc(true);
+    try {
+      const res = await fetch('/api/dashboard/financeiro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: novoLancTipo,
+          descricao: novoLancDescricao.trim(),
+          valor: novoLancValor,
+          data: novoLancData || new Date().toISOString().split('T')[0],
+          paciente: novoLancPaciente.trim() || null,
+          categoria: novoLancCategoria
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLancSuccess('Lançamento registrado!');
+        setNovoLancDescricao('');
+        setNovoLancValor('');
+        setNovoLancPaciente('');
+        setNovoLancData(new Date().toISOString().split('T')[0]);
+        await loadFinanceiro();
+        setTimeout(() => setLancSuccess(null), 2500);
+      } else {
+        setLancError(data.error || 'Erro ao salvar.');
+      }
+    } catch (err) {
+      setLancError('Erro de conexão.');
+    } finally {
+      setSavingLanc(false);
+    }
+  };
+
+  const handleDeleteLancamento = async (id: string) => {
+    if (!confirm('Remover este lançamento?')) return;
+    try {
+      const res = await fetch(`/api/dashboard/financeiro?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await loadFinanceiro();
+      } else {
+        alert(data.error || 'Erro ao remover.');
+      }
+    } catch {
+      alert('Erro de conexão.');
+    }
+  };
 
   // Salvar Edição com proteção anti-fraude
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -1693,6 +1795,286 @@ export default function DashboardPage() {
               })}
             </div>
           )}
+        </div>
+
+        {/* ========================================================= */}
+        {/* FINANÇAS & RENTABILIDADE */}
+        {/* ========================================================= */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+
+          {/* Cabeçalho + filtro de mês */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-2 border border-emerald-200">
+                <DollarSign className="w-3.5 h-3.5" /> Módulo Financeiro
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Finanças &amp; Rentabilidade</h2>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                Registre atendimentos e gastos para saber se vale a pena e quanto você está ganhando por mês.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Mês</label>
+              <input
+                type="month"
+                value={mesFiltroFinanceiro}
+                onChange={(e) => setMesFiltroFinanceiro(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:outline-hidden focus:border-emerald-500 cursor-pointer"
+              />
+              {loadingFinanceiro && <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />}
+            </div>
+          </div>
+
+          {/* CARDS DE RESUMO */}
+          {resumoFinanceiro && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Receitas */}
+              <div className="col-span-1 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Receitas</p>
+                <p className="text-lg font-black text-emerald-800">
+                  R$ {resumoFinanceiro.totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              {/* Despesas */}
+              <div className="col-span-1 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-center space-y-1">
+                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Despesas</p>
+                <p className="text-lg font-black text-rose-800">
+                  R$ {resumoFinanceiro.totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              {/* Lucro Líquido */}
+              <div className={`col-span-1 p-4 rounded-2xl border text-center space-y-1 ${resumoFinanceiro.lucroLiquido >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${resumoFinanceiro.lucroLiquido >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>Lucro Líquido</p>
+                <p className={`text-lg font-black ${resumoFinanceiro.lucroLiquido >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                  R$ {resumoFinanceiro.lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              {/* Atendimentos */}
+              <div className="col-span-1 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Atendimentos</p>
+                <p className="text-lg font-black text-slate-900">{resumoFinanceiro.qtdAtendimentos}</p>
+              </div>
+              {/* Média por Atendimento */}
+              <div className="col-span-1 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center space-y-1">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Média/Atend.</p>
+                <p className="text-lg font-black text-blue-900">
+                  R$ {resumoFinanceiro.mediaAtendimento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              {/* Vale a pena? */}
+              <div className={`col-span-1 p-4 rounded-2xl border text-center space-y-1 ${
+                resumoFinanceiro.margemLucro >= 50 ? 'bg-emerald-50 border-emerald-300' :
+                resumoFinanceiro.margemLucro >= 20 ? 'bg-yellow-50 border-yellow-300' :
+                'bg-rose-50 border-rose-300'
+              }`}>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Vale a pena?</p>
+                <p className={`text-sm font-black ${
+                  resumoFinanceiro.margemLucro >= 50 ? 'text-emerald-700' :
+                  resumoFinanceiro.margemLucro >= 20 ? 'text-yellow-700' :
+                  'text-rose-700'
+                }`}>
+                  {resumoFinanceiro.totalReceitas === 0 ? '—' :
+                   resumoFinanceiro.margemLucro >= 50 ? '✅ Sim!' :
+                   resumoFinanceiro.margemLucro >= 20 ? '⚠️ Razoável' :
+                   '❌ Atenção'}
+                </p>
+                {resumoFinanceiro.totalReceitas > 0 && (
+                  <p className="text-[10px] text-slate-500">{resumoFinanceiro.margemLucro.toFixed(0)}% margem</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* FORMULÁRIO DE NOVO LANÇAMENTO */}
+          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+            <h3 className="text-xs font-bold text-slate-700 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-emerald-600" /> Registrar Lançamento
+            </h3>
+
+            {lancError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {lancError}
+              </div>
+            )}
+            {lancSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" /> {lancSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleAddLancamento} className="space-y-3">
+              {/* Tipo (Receita / Despesa) */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setNovoLancTipo('RECEITA'); setNovoLancCategoria('Atendimento'); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${novoLancTipo === 'RECEITA' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'}`}
+                >
+                  ↑ Receita (Entrada)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setNovoLancTipo('DESPESA'); setNovoLancCategoria('Insumo'); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${novoLancTipo === 'DESPESA' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-rose-400'}`}
+                >
+                  ↓ Despesa (Saída)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Descrição *</label>
+                  <input
+                    type="text"
+                    value={novoLancDescricao}
+                    onChange={(e) => setNovoLancDescricao(e.target.value)}
+                    placeholder={novoLancTipo === 'RECEITA' ? 'Ex: Consulta - Rex (Golden)' : 'Ex: Gasolina, seringa, aluguel'}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Valor (R$) *</label>
+                  <input
+                    type="text"
+                    value={novoLancValor}
+                    onChange={(e) => setNovoLancValor(e.target.value)}
+                    placeholder="150,00"
+                    required
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-hidden focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Data</label>
+                  <input
+                    type="date"
+                    value={novoLancData}
+                    onChange={(e) => setNovoLancData(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500 cursor-pointer"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    {novoLancTipo === 'RECEITA' ? 'Paciente / Tutor' : 'Fornecedor'}
+                  </label>
+                  <input
+                    type="text"
+                    value={novoLancPaciente}
+                    onChange={(e) => setNovoLancPaciente(e.target.value)}
+                    placeholder={novoLancTipo === 'RECEITA' ? 'Ex: Maria Silva' : 'Ex: Pet Shop Central'}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
+                  <select
+                    value={novoLancCategoria}
+                    onChange={(e) => setNovoLancCategoria(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden cursor-pointer"
+                  >
+                    {novoLancTipo === 'RECEITA' ? (
+                      <>
+                        <option value="Atendimento">Atendimento</option>
+                        <option value="Cirurgia">Cirurgia</option>
+                        <option value="Vacinação">Vacinação</option>
+                        <option value="Exame">Exame</option>
+                        <option value="Emergência">Emergência</option>
+                        <option value="Estética">Estética</option>
+                        <option value="Domiciliar">Domiciliar</option>
+                        <option value="Outro">Outro</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Insumo">Insumo</option>
+                        <option value="Combustível">Combustível</option>
+                        <option value="Aluguel">Aluguel</option>
+                        <option value="Equipamento">Equipamento</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Farmácia">Farmácia</option>
+                        <option value="Plataforma">Plataforma VetBra</option>
+                        <option value="Outro">Outro</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={savingLanc}
+                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 transition-colors ${novoLancTipo === 'RECEITA' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+                >
+                  {savingLanc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {savingLanc ? 'Salvando...' : `Registrar ${novoLancTipo === 'RECEITA' ? 'Receita' : 'Despesa'}`}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* LISTA DE LANÇAMENTOS */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold text-slate-700 flex items-center justify-between">
+              <span>Lançamentos do mês</span>
+              <span className="font-normal text-slate-400">{registrosFinanceiros.length} registro(s)</span>
+            </h3>
+
+            {registrosFinanceiros.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 space-y-1">
+                <DollarSign className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-sm font-semibold">Nenhum lançamento neste mês.</p>
+                <p className="text-xs">Registre seu primeiro atendimento ou despesa acima.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                      <th className="py-2.5 px-2">Data</th>
+                      <th className="py-2.5 px-2">Tipo</th>
+                      <th className="py-2.5 px-2">Descrição</th>
+                      <th className="py-2.5 px-2">Categoria</th>
+                      <th className="py-2.5 px-2">Paciente/Fornec.</th>
+                      <th className="py-2.5 px-2 text-right">Valor</th>
+                      <th className="py-2.5 px-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {registrosFinanceiros.map((r: any) => (
+                      <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-2 text-slate-500 whitespace-nowrap">
+                          {new Date(r.data).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.tipo === 'RECEITA' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                            {r.tipo === 'RECEITA' ? '↑ Receita' : '↓ Despesa'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 font-semibold text-slate-800 max-w-[160px] truncate">{r.descricao}</td>
+                        <td className="py-2.5 px-2 text-slate-500">{r.categoria || '—'}</td>
+                        <td className="py-2.5 px-2 text-slate-500">{r.paciente || '—'}</td>
+                        <td className={`py-2.5 px-2 text-right font-black whitespace-nowrap ${r.tipo === 'RECEITA' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {r.tipo === 'RECEITA' ? '+' : '-'} R$ {Number(r.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <button
+                            onClick={() => handleDeleteLancamento(r.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Remover lançamento"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
       </main>
