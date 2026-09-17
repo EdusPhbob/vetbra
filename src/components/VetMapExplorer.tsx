@@ -82,16 +82,33 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
   });
   const [userCity, setUserCity] = useState('São Paulo, SP');
   const [detectingGps, setDetectingGps] = useState(false);
-  const [raioKm, setRaioKm] = useState<number>(15); // 15 km padrão
-  const [filtroModalidade, setFiltroModalidade] = useState<'TODOS' | 'FIXO' | 'CARRO' | 'MOTO'>('TODOS');
+  const [raioKm, setRaioKm] = useState<number>(0); // Padrão: Sem limite (máximo)
+  const [filtroModalidade, setFiltroModalidade] = useState<'TODOS' | 'FIXO' | 'CARRO' | 'MOTO'>('TODOS'); // Padrão: Todos
   const [selectedVet, setSelectedVet] = useState<any>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  // Controles inovadores: Estilo do Mapa, Modo Térmico, Áreas de Cobertura e Fullscreen
-  const [mapStyle, setMapStyle] = useState<'ruas' | 'satelite' | 'relevo'>('ruas');
-  const [modoVisualizacao, setModoVisualizacao] = useState<'MARCADORES' | 'TERMAL'>('MARCADORES');
+  // Configurações padrão solicitadas: Google Ruas, Mapa Térmico ativo por padrão
+  const [mapStyle, setMapStyle] = useState<'ruas' | 'satelite' | 'relevo'>('ruas'); // Google Ruas
+  const [modoVisualizacao, setModoVisualizacao] = useState<'MARCADORES' | 'TERMAL'>('TERMAL'); // Mapa Térmico
   const [mostrarAreas, setMostrarAreas] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // Escuta evento customizado disparado pelo campo de busca/CEP ou GPS para centralizar instantaneamente
+  useEffect(() => {
+    const handleCenterMap = (e: any) => {
+      const { lat, lng, cep } = e.detail || {};
+      if (lat && lng) {
+        setUserLocation({ lat, lng });
+        if (cep) setUserCity(cep);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([lat, lng], 13, { duration: 1.2 });
+        }
+      }
+    };
+
+    window.addEventListener('vetbra_center_map', handleCenterMap);
+    return () => window.removeEventListener('vetbra_center_map', handleCenterMap);
+  }, [mapReady]);
 
   // Helper para determinar ícone, cor e raio de atendimento do veterinário
   const getVetIconInfo = (vet: any) => {

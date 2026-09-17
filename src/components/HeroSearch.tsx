@@ -78,9 +78,24 @@ export default function HeroSearch() {
           const estado = addr.state_code || addr.state || 'SP';
           const ufSigla = estado.length > 2 ? 'SP' : estado;
 
-          const localFinal = `${cidade}, ${ufSigla}`;
+          const rawPostcode = (addr.postcode || '').replace(/\D/g, '');
+          let localFinal = '';
+          if (rawPostcode.length >= 8) {
+            localFinal = `${rawPostcode.slice(0, 5)}-${rawPostcode.slice(5, 8)}`;
+            setLocationStatus(`📍 CEP Detectado: ${localFinal} (${cidade}/${ufSigla})`);
+          } else {
+            localFinal = `${cidade}, ${ufSigla}`;
+            setLocationStatus(`📍 Localização detectada: ${localFinal}`);
+          }
           setLocalizacao(localFinal);
-          setLocationStatus(`📍 Localização detectada: ${localFinal}`);
+
+          // Dispara evento para o mapa ir direto para as coordenadas do usuário / CEP
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('vetbra_center_map', {
+              detail: { lat: latitude, lng: longitude, cep: localFinal }
+            }));
+          }
+
           scrollToMapSection();
         } catch (err) {
           console.error('Erro na geocodificação:', err);
@@ -100,7 +115,7 @@ export default function HeroSearch() {
     );
   };
 
-  // Detecção e preenchimento automático de CEP em tempo real
+  // Detecção e preenchimento automático de CEP em tempo real com deslocamento no mapa
   const handleLocationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setLocalizacao(val);
@@ -113,9 +128,25 @@ export default function HeroSearch() {
         const res = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
         const data = await res.json();
         if (!data.erro) {
-          const resultado = `${data.localidade}, ${data.uf} (${data.bairro})`;
+          const formattedCep = `${digitos.slice(0, 5)}-${digitos.slice(5)}`;
+          const resultado = `${formattedCep} - ${data.bairro}, ${data.localidade}/${data.uf}`;
           setLocalizacao(resultado);
-          setLocationStatus(`✓ CEP Encontrado: ${data.bairro}, ${data.localidade}/${data.uf}`);
+          setLocationStatus(`✓ CEP Encontrado: ${formattedCep} (${data.bairro}, ${data.localidade})`);
+
+          // Tenta obter coordenadas exatas do CEP para centralizar o mapa imediatamente
+          fetch(`https://nominatim.openstreetmap.org/search?postalcode=${digitos}&country=Brazil&format=json`)
+            .then((r) => r.json())
+            .then((geoData) => {
+              if (geoData && geoData.length > 0) {
+                const lat = parseFloat(geoData[0].lat);
+                const lng = parseFloat(geoData[0].lon);
+                window.dispatchEvent(new CustomEvent('vetbra_center_map', {
+                  detail: { lat, lng, cep: formattedCep }
+                }));
+              }
+            })
+            .catch(() => {});
+
           scrollToMapSection();
         }
       } catch (err) {
@@ -254,7 +285,7 @@ export default function HeroSearch() {
               onClick={handleDetectLocation}
               disabled={loadingLocation}
               className="text-[11px] font-bold text-[#147A44] hover:text-emerald-800 flex items-center gap-1 hover:underline cursor-pointer disabled:opacity-50"
-              title="Detectar automaticamente minha cidade ou bairro"
+              title="Detectar automaticamente meu CEP ou cidade"
             >
               {loadingLocation ? (
                 <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
@@ -279,14 +310,14 @@ export default function HeroSearch() {
           </div>
         </div>
 
-        {/* Botão de Busca */}
+        {/* Botão de Busca: apenas 'Buscar' */}
         <div className="flex items-center">
           <button
             type="submit"
             className="w-full h-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#147A44] to-[#1B85B8] hover:from-[#11693A] hover:to-[#16709C] text-white font-black text-sm sm:text-base shadow-md shadow-emerald-700/20 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
           >
             <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-            Buscar Vets
+            Buscar
           </button>
         </div>
       </form>

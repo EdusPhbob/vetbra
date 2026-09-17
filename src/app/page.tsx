@@ -235,10 +235,10 @@ export default async function HomePage() {
                 </div>
                 <div>
                   <div className="text-2xl sm:text-3xl font-black text-[#147A44] tracking-tight">
-                    100%
+                    {totalVetsCadastrados > 0 ? '100%' : '0%'}
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                    CRMV Auditado no CFMV
+                    {totalVetsCadastrados > 0 ? 'CRMV Auditado no CFMV' : 'Cadastros Auditados no CFMV'}
                   </div>
                 </div>
               </div>
