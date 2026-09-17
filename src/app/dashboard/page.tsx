@@ -30,9 +30,28 @@ import {
   Check,
   Headphones,
   Send,
-  Inbox
+  Inbox,
+  Sparkles
 } from 'lucide-react';
 import { formatCrmv } from '@/lib/crmv';
+import { parseUserAgent, formatOrigem } from '@/lib/deviceDetector';
+
+// Catálogo de procedimentos sugeridos para preenchimento rápido
+const SUGESTOES_PROCEDIMENTOS = [
+  { nome: 'Consulta Clínica Geral', categoria: 'Consulta', tempo: '30' },
+  { nome: 'Consulta Domiciliar', categoria: 'Consulta', tempo: '60' },
+  { nome: 'Vacina V8 / V10 (Cães)', categoria: 'Vacinação', tempo: '20' },
+  { nome: 'Vacina Antirrábica', categoria: 'Vacinação', tempo: '15' },
+  { nome: 'Vacina Quádrupla Felina', categoria: 'Vacinação', tempo: '20' },
+  { nome: 'Castração Macho', categoria: 'Cirurgia', tempo: '60' },
+  { nome: 'Castração Fêmea', categoria: 'Cirurgia', tempo: '90' },
+  { nome: 'Limpeza de Tártaro (Profilaxia)', categoria: 'Cirurgia', tempo: '60' },
+  { nome: 'Hemograma Completo', categoria: 'Exame', tempo: '15' },
+  { nome: 'Ultrassonografia Abdominal', categoria: 'Exame', tempo: '45' },
+  { nome: 'Plantão Noturno / Emergência', categoria: 'Emergência', tempo: '45' },
+  { nome: 'Aplicação de Microchip', categoria: 'Consulta', tempo: '20' },
+  { nome: 'Corte de Unhas e Limpeza Otológica', categoria: 'Estética', tempo: '30' },
+];
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -51,6 +70,8 @@ export default function DashboardPage() {
   const [novaCategoria, setNovaCategoria] = useState('Consulta');
   const [novoPreco, setNovoPreco] = useState('');
   const [novoTempo, setNovoTempo] = useState('30');
+  const [procError, setProcError] = useState<string | null>(null);
+  const [procSuccess, setProcSuccess] = useState<string | null>(null);
 
   const [savingArtigo, setSavingArtigo] = useState(false);
   const [artigoTitulo, setArtigoTitulo] = useState('');
@@ -323,9 +344,34 @@ export default function DashboardPage() {
   };
 
   // Procedimentos
+  const handleSelectSugestao = (sugestao: typeof SUGESTOES_PROCEDIMENTOS[0]) => {
+    setNovoNome(sugestao.nome);
+    setNovaCategoria(sugestao.categoria);
+    setNovoTempo(sugestao.tempo);
+    setProcError(null);
+    const precoInput = document.getElementById('input-novo-preco');
+    if (precoInput) {
+      precoInput.focus();
+    }
+  };
+
   const handleAddProcedimento = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!novoNome || !novoPreco || !vet) return;
+    setProcError(null);
+    setProcSuccess(null);
+
+    if (!novoNome.trim()) {
+      setProcError('Por favor, informe o nome do procedimento.');
+      return;
+    }
+    if (!novoPreco || !novoPreco.trim()) {
+      setProcError('Por favor, informe o valor do procedimento.');
+      return;
+    }
+    if (!vet) {
+      setProcError('Sessão do veterinário não identificada. Por favor, recarregue a página.');
+      return;
+    }
 
     setSavingProc(true);
     try {
@@ -334,21 +380,26 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           veterinarioId: vet.id,
-          nome: novoNome,
+          nome: novoNome.trim(),
           categoria: novaCategoria,
-          preco: novoPreco,
+          preco: novoPreco.trim(),
           tempoMedioMinutos: novoTempo
         })
       });
 
-      if (res.ok) {
-        const item = await res.json();
-        setProcedimentos([...procedimentos, item]);
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setProcedimentos(prev => [...prev, data]);
         setNovoNome('');
         setNovoPreco('');
+        setProcSuccess(`Procedimento "${data.nome}" adicionado com sucesso!`);
+        setTimeout(() => setProcSuccess(null), 4000);
+      } else {
+        setProcError(data.error || 'Erro ao adicionar procedimento.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setProcError('Erro de conexão ao salvar procedimento.');
     } finally {
       setSavingProc(false);
     }
@@ -635,61 +686,134 @@ export default function DashboardPage() {
 
         {/* HISTÓRICO DE CLIQUES NO WHATSAPP RECENTES */}
         {vet.cliquesWhatsapp && vet.cliquesWhatsapp.length > 0 && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <MessageCircle className="w-4 h-4 text-emerald-600" /> Últimos Tutores que Clicaram no seu WhatsApp
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Rastreamento em tempo real dos tutores que iniciaram conversa com você pelo VetBra.
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Rastreamento em tempo real dos contatos gerados com identificação do dispositivo e origem do clique.
                 </p>
               </div>
-              <span className="text-xs font-bold text-[#147A44] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                {vet.contatosWhatsappCount} cliques totais
+              <span className="text-xs font-bold text-[#147A44] bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">
+                {vet.contatosWhatsappCount || vet.cliquesWhatsapp.length} cliques totais
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2">
-              {vet.cliquesWhatsapp.map((log: any) => (
-                <div key={log.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between text-slate-600 font-semibold">
-                    <span>Origem: {log.origem}</span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(log.createdAt).toLocaleDateString('pt-BR')} às {new Date(log.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+              {vet.cliquesWhatsapp.map((log: any) => {
+                const origemInfo = formatOrigem(log.origem);
+                const deviceInfo = parseUserAgent(log.userAgent);
+                return (
+                  <div key={log.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2 hover:border-slate-300 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${origemInfo.color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${origemInfo.dotColor}`} />
+                        {origemInfo.badge}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        {new Date(log.createdAt).toLocaleDateString('pt-BR')} às {new Date(log.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div className="space-y-0.5 pt-0.5">
+                      <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <span className="text-sm">{deviceInfo.icone}</span>
+                        <span>{deviceInfo.aparelho}</span>
+                        <span className="text-[10px] font-normal text-slate-500">({deviceInfo.sistema})</span>
+                      </p>
+                      <p className="text-[10px] text-slate-500 pl-5">
+                        Navegador: <strong className="text-slate-700 font-semibold">{deviceInfo.navegador}</strong>
+                      </p>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-slate-200/70">
+                      <p className="text-[9.5px] text-slate-500 leading-tight">
+                        <span className="font-semibold text-slate-600">Local do clique:</span> {origemInfo.descricao}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 truncate">Dispositivo: {log.userAgent || 'Navegador Web'}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* TABELA DE PROCEDIMENTOS E PREÇOS */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Tabela de Procedimentos e Serviços</h2>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Defina os procedimentos que você realiza e os preços que serão exibidos no seu perfil para os tutores.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-600" /> Tabela de Procedimentos e Serviços
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Defina os procedimentos que você realiza e os preços que serão exibidos no seu perfil para os tutores.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shrink-0">
+              {procedimentos.length} procedimentos cadastrados
+            </span>
           </div>
 
+          {/* Sugestões Rápidas de Procedimentos (Catálogo Pronto) */}
+          <div className="space-y-2 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Sugestões Rápidas (Clique para preencher):
+              </span>
+              <span className="text-[10px] text-slate-400">Clique para selecionar e informe apenas o valor</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {SUGESTOES_PROCEDIMENTOS.map((sug, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSelectSugestao(sug)}
+                  className="px-2.5 py-1 text-[11px] font-semibold bg-white hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 text-slate-700 border border-slate-200 rounded-lg transition-all cursor-pointer shadow-2xs"
+                >
+                  + {sug.nome}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mensagens de feedback */}
+          {procSuccess && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {procSuccess}
+            </div>
+          )}
+          {procError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              {procError}
+            </div>
+          )}
+
           {/* Form para adicionar procedimento */}
-          <form onSubmit={handleAddProcedimento} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-            <div className="sm:col-span-2 space-y-1">
+          <form onSubmit={handleAddProcedimento} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            <datalist id="lista-sugestoes-procedimentos">
+              {SUGESTOES_PROCEDIMENTOS.map((s, idx) => (
+                <option key={idx} value={s.nome} />
+              ))}
+            </datalist>
+
+            <div className="sm:col-span-4 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Nome do Procedimento</label>
               <input
                 type="text"
+                list="lista-sugestoes-procedimentos"
                 value={novoNome}
                 onChange={(e) => setNovoNome(e.target.value)}
-                placeholder="Ex: Consulta Domiciliar ou Vacina V10"
+                placeholder="Ex: Consulta Clínica Geral, Vacina V10..."
                 required
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-emerald-500"
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="sm:col-span-3 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
               <select
                 value={novaCategoria}
@@ -705,67 +829,100 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Valor (R$)</label>
+            <div className="sm:col-span-2 space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Duração (min)</label>
               <input
                 type="number"
-                step="0.01"
-                value={novoPreco}
-                onChange={(e) => setNovoPreco(e.target.value)}
-                placeholder="150.00"
-                required
+                min="5"
+                step="5"
+                value={novoTempo}
+                onChange={(e) => setNovoTempo(e.target.value)}
+                placeholder="30"
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={savingProc}
-              className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              {savingProc ? 'Salvando...' : 'Adicionar'}
-            </button>
+            <div className="sm:col-span-2 space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Valor (R$)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
+                <input
+                  id="input-novo-preco"
+                  type="text"
+                  inputMode="decimal"
+                  value={novoPreco}
+                  onChange={(e) => setNovoPreco(e.target.value)}
+                  placeholder="150,00"
+                  required
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-1">
+              <button
+                type="submit"
+                disabled={savingProc}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                title="Adicionar Procedimento"
+              >
+                {savingProc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <span className="sm:hidden">Adicionar</span>
+              </button>
+            </div>
           </form>
 
-          {/* Listagem de procedimentos ativos */}
+          {/* Listagem de procedimentos ativos com numeração */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                  <th className="py-3 px-2">Procedimento</th>
-                  <th className="py-3 px-2">Categoria</th>
-                  <th className="py-3 px-2">Duração Média</th>
-                  <th className="py-3 px-2">Preço (R$)</th>
-                  <th className="py-3 px-2 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {procedimentos.map((proc) => (
-                  <tr key={proc.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-2 font-bold text-slate-800">{proc.nome}</td>
-                    <td className="py-3 px-2">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                        {proc.categoria}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2 text-slate-500">{proc.tempoMedioMinutos || 30} min</td>
-                    <td className="py-3 px-2 font-black text-slate-900">
-                      R$ {Number(proc.preco).toFixed(2).replace('.', ',')}
-                    </td>
-                    <td className="py-3 px-2 text-right">
-                      <button
-                        onClick={() => handleDeleteProcedimento(proc.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Remover procedimento"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+            {procedimentos.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 space-y-2">
+                <p className="text-sm font-semibold">Nenhum procedimento cadastrado ainda.</p>
+                <p className="text-xs">Utilize as sugestões acima ou adicione novos serviços para que apareçam em seu perfil.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                    <th className="py-3 px-2 w-12 text-center">Nº</th>
+                    <th className="py-3 px-2">Procedimento</th>
+                    <th className="py-3 px-2">Categoria</th>
+                    <th className="py-3 px-2">Duração Média</th>
+                    <th className="py-3 px-2">Preço (R$)</th>
+                    <th className="py-3 px-2 text-right">Ação</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {procedimentos.map((proc, index) => (
+                    <tr key={proc.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-2 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px]">
+                          #{index + 1}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 font-bold text-slate-800">{proc.nome}</td>
+                      <td className="py-3 px-2">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                          {proc.categoria}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-slate-500">{proc.tempoMedioMinutos || 30} min</td>
+                      <td className="py-3 px-2 font-black text-emerald-700">
+                        R$ {Number(proc.preco).toFixed(2).replace('.', ',')}
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        <button
+                          onClick={() => handleDeleteProcedimento(proc.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Remover procedimento"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 

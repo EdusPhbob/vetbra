@@ -26,24 +26,43 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { veterinarioId, nome, categoria, preco, tempoMedioMinutos, descricao } = body;
 
-    if (!veterinarioId || !nome || preco === undefined) {
-      return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
+    if (!veterinarioId || !nome || preco === undefined || preco === null || preco === '') {
+      return NextResponse.json({ error: 'Nome e valor do procedimento são obrigatórios.' }, { status: 400 });
+    }
+
+    let parsedPreco = 0;
+    if (typeof preco === 'number') {
+      parsedPreco = preco;
+    } else if (typeof preco === 'string') {
+      // Tratar formatos brasileiros: "150,00", "R$ 150,00", "1.200,50" ou "150.00"
+      let clean = preco.replace(/[R$\s]/gi, '').trim();
+      if (clean.includes(',') && clean.includes('.')) {
+        clean = clean.replace(/\./g, '').replace(',', '.');
+      } else if (clean.includes(',')) {
+        clean = clean.replace(',', '.');
+      }
+      parsedPreco = parseFloat(clean);
+    }
+
+    if (isNaN(parsedPreco) || parsedPreco < 0) {
+      return NextResponse.json({ error: 'Valor inválido. Por favor, digite um número válido (ex: 150,00).' }, { status: 400 });
     }
 
     const novo = await prisma.procedimento.create({
       data: {
         veterinarioId,
-        nome,
+        nome: String(nome).trim(),
         categoria: categoria || 'Consulta',
-        preco: parseFloat(preco),
+        preco: parsedPreco,
         tempoMedioMinutos: tempoMedioMinutos ? parseInt(tempoMedioMinutos) : 30,
-        descricao
+        descricao: descricao ? String(descricao).trim() : null
       }
     });
 
     return NextResponse.json(novo);
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao cadastrar procedimento' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Erro ao cadastrar procedimento:', error);
+    return NextResponse.json({ error: error?.message || 'Erro ao cadastrar procedimento' }, { status: 500 });
   }
 }
 
