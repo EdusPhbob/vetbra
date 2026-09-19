@@ -18,10 +18,10 @@ export async function GET(request: Request) {
 
     const where: any = {};
 
-    // Apenas aprovados e ativos no portal público a menos que seja modo moderação
+    // Apenas ativos no portal público (verificados ou cadastrados com CRMV pendente/em análise)
     if (!includePending) {
-      where.crmvStatus = CrmvStatus.VERIFICADO;
       where.statusGeral = 'ATIVO';
+      where.crmvStatus = { in: [CrmvStatus.VERIFICADO, CrmvStatus.PENDENTE, CrmvStatus.EM_ANALISE] };
       where.user = { ativo: true };
     }
 

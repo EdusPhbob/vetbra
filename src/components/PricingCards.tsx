@@ -18,13 +18,14 @@ export interface PlanItem {
 export const PLANOS_DISPONIVEIS: PlanItem[] = [
   {
     id: 'BASICO',
-    nome: 'Básico',
-    descricao: 'Ideal para profissionais autônomos ou recém-formados iniciando divulgação.',
-    preco: '79,90',
-    periodo: '/mês',
+    nome: 'Básico (Grátis)',
+    descricao: 'Ideal para profissionais autônomos ou recém-formados iniciando divulgação sem custos.',
+    preco: '0,00',
+    periodo: 'Grátis',
     recursos: [
       'Perfil oficial na plataforma VetBra',
-      'Selo de CRMV Verificado no CFMV',
+      'Ativação imediata da conta',
+      'Aparece no mapa com CRMV pendente',
       'Exibição de Telefone e WhatsApp',
       'Tabela básica de procedimentos e preços',
       'Localização no mapa e raio de atendimento',
@@ -120,13 +121,26 @@ export default function PricingCards({
 
               {/* PREÇO */}
               <div className="my-6 pt-4 flex items-baseline gap-1">
-                <span className="text-xs font-bold text-slate-900 self-baseline mr-1">R$</span>
-                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
-                  {plano.preco}
-                </span>
-                <span className="text-xs font-semibold text-slate-400 ml-1">
-                  {plano.periodo}
-                </span>
+                {plano.preco === '0,00' ? (
+                  <>
+                    <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                      Grátis
+                    </span>
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2 border border-emerald-200">
+                      Sem custo
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-bold text-slate-900 self-baseline mr-1">R$</span>
+                    <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                      {plano.preco}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-400 ml-1">
+                      {plano.periodo}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* LISTA DE RECURSOS */}
@@ -149,14 +163,14 @@ export default function PricingCards({
             <div className="pt-8 mt-8 border-t border-slate-100">
               {mode === 'link' ? (
                 <Link
-                  href={`/cadastro?plano=${plano.nome.toLowerCase()}`}
+                  href={`/cadastro?plano=${plano.id.toLowerCase()}`}
                   className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
                     plano.destaque
                       ? 'bg-[#00875A] hover:bg-[#00704A] text-white shadow-emerald-700/20'
                       : 'bg-[#111827] hover:bg-black text-white'
                   }`}
                 >
-                  <span>Começar com {plano.nome}</span>
+                  <span>{plano.preco === '0,00' ? 'Criar Conta Gratuita' : `Começar com ${plano.nome}`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               ) : (
@@ -171,12 +185,12 @@ export default function PricingCards({
                       : 'bg-[#111827] hover:bg-black text-white'
                   }`}
                 >
-                  <span>{isSelected ? `Plano ${plano.nome} Selecionado ✓` : `Começar com ${plano.nome} →`}</span>
+                  <span>{isSelected ? `Plano ${plano.nome} Selecionado ✓` : (plano.preco === '0,00' ? 'Selecionar Plano Grátis' : `Começar com ${plano.nome} →`)}</span>
                 </button>
               )}
 
               <p className="text-[11px] text-center text-slate-400 font-medium mt-3">
-                Cancele quando quiser • Sem taxas ocultas
+                {plano.preco === '0,00' ? '100% gratuito • Sem cartão de crédito' : 'Cancele quando quiser • Sem taxas ocultas'}
               </p>
             </div>
           </div>

@@ -74,7 +74,7 @@ const CIDADES_POR_UF: Record<string, string[]> = {
 function CadastroContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const planoInicial = (searchParams.get('plano') || 'profissional').toUpperCase();
+  const planoInicial = (searchParams.get('plano') || 'basico').toUpperCase();
 
   const [etapa, setEtapa] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -143,7 +143,7 @@ function CadastroContent() {
     },
 
     // Etapa 4: Plano
-    plano: ['BASICO', 'PROFISSIONAL', 'PREMIUM'].includes(planoInicial) ? planoInicial : 'PROFISSIONAL'
+    plano: ['BASICO', 'PROFISSIONAL', 'PREMIUM'].includes(planoInicial) ? planoInicial : 'BASICO'
   });
 
   const [erroMsg, setErroMsg] = useState<string | null>(null);
@@ -509,51 +509,101 @@ function CadastroContent() {
                 </p>
               </div>
 
-              {/* CARD DE PAGAMENTO PIX PARA ATIVAÇÃO DO PLANO */}
-              <div className="max-w-md mx-auto p-6 rounded-3xl bg-slate-50 border border-slate-200 text-left space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase">Plano Escolhido</span>
-                    <h3 className="text-base font-black text-slate-900">Plano {form.plano}</h3>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                    Aguardando Ativação Pix
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-600 space-y-2">
-                  <p>
-                    Para ativar seu perfil instantaneamente no mapa e na busca, realize o pagamento via Pix:
-                  </p>
-                  <div className="bg-white p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <span className="font-mono text-slate-700 text-[11px] truncate mr-2">
-                      00020126580014BR.GOV.BCB.PIX0136vetbra-pix...
+              {/* CARD DE SUCESSO: FREE / BÁSICO (SEM COBRANÇA) OU PLANOS PAGOS (COM PIX) */}
+              {form.plano === 'BASICO' || successData.isFree ? (
+                <div className="max-w-md mx-auto p-6 rounded-3xl bg-emerald-50/60 border border-emerald-200 text-left space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-emerald-200/80">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase">Plano Escolhido</span>
+                      <h3 className="text-base font-black text-slate-900">Plano Básico (Grátis)</h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#147A44] text-white shadow-xs">
+                      Ativação Imediata ✓
                     </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs text-slate-600">
+                    <div className="p-3.5 bg-white rounded-2xl border border-emerald-100 flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-slate-900 block text-xs">Perfil Publicado no Mapa</span>
+                        <span className="text-[11px] text-slate-500 leading-relaxed">
+                          Sua localização e dados profissionais já estão visíveis no mapa e nas buscas do portal para os tutores da sua cidade.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-2xl border border-amber-200 flex items-start gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0 mt-1.5" />
+                      <div>
+                        <span className="font-bold text-amber-900 block text-xs">CRMV Pendente de Verificação</span>
+                        <span className="text-[11px] text-slate-500 leading-relaxed">
+                          No mapa e nos cards, seu perfil exibe a indicação <strong>"CRMV Pendente de Verificação"</strong> enquanto nossa equipe realiza a checagem cadastral do seu registro.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
                     <button
                       type="button"
-                      onClick={copiarPix}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shrink-0"
+                      onClick={() => router.push('/dashboard')}
+                      className="w-full py-3.5 rounded-2xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {pixCopiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      {pixCopiado ? 'Copiado!' : 'Copiar Pix'}
+                      <span>Acessar o Painel do Veterinário</span>
+                      <ArrowRight className="w-4 h-4" />
                     </button>
+                    <p className="text-[10px] text-center text-slate-400">
+                      Você já pode acessar sua conta, configurar seus horários e cadastrar procedimentos.
+                    </p>
                   </div>
                 </div>
+              ) : (
+                <div className="max-w-md mx-auto p-6 rounded-3xl bg-slate-50 border border-slate-200 text-left space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase">Plano Escolhido</span>
+                      <h3 className="text-base font-black text-slate-900">Plano {form.plano}</h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                      Aguardando Ativação Pix
+                    </span>
+                  </div>
 
-                <div className="pt-2 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push('/dashboard')}
-                    className="w-full py-3.5 rounded-2xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>Ir para o Painel do Veterinário</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <p className="text-[10px] text-center text-slate-400">
-                    Você já pode acessar o painel e adicionar procedimentos enquanto os documentos são auditados.
-                  </p>
+                  <div className="text-xs text-slate-600 space-y-2">
+                    <p>
+                      Para ativar os benefícios premium no mapa e na busca, realize o pagamento via Pix:
+                    </p>
+                    <div className="bg-white p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
+                      <span className="font-mono text-slate-700 text-[11px] truncate mr-2">
+                        {successData?.vet?.pixCopiaCola || '00020126580014BR.GOV.BCB.PIX...'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={copiarPix}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {pixCopiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {pixCopiado ? 'Copiado!' : 'Copiar Pix'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/dashboard')}
+                      className="w-full py-3.5 rounded-2xl bg-[#147A44] hover:bg-[#11693A] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Ir para o Painel do Veterinário</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <p className="text-[10px] text-center text-slate-400">
+                      Você já pode acessar o painel e adicionar procedimentos enquanto os documentos são auditados.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
 
@@ -1248,10 +1298,10 @@ function CadastroContent() {
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-amber-500" /> 4. Escolha do Plano Profissional (Obrigatório)
+                      <Sparkles className="w-5 h-5 text-amber-500" /> 4. Escolha do seu Plano (Ativação)
                     </h2>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      Selecione o plano desejado para sua clínica ou atuação autônoma. O pagamento é facilitado por Pix ou Boleto.
+                      Selecione o plano desejado. O <strong>Plano Básico é 100% Gratuito</strong> com liberação instantânea no mapa.
                     </p>
                   </div>
 
@@ -1262,13 +1312,25 @@ function CadastroContent() {
                     onSelectPlan={(p) => setForm(prev => ({ ...prev, plano: p }))}
                   />
 
-                  {/* RESUMO DE COBRANÇA PIX / BOLETO */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                    <span className="font-bold text-slate-800 block">Forma de Cobrança & Ativação:</span>
-                    <p className="text-slate-600 leading-relaxed">
-                      Ao concluir o cadastro, será gerado o código <strong>Pix Copia e Cola</strong> e o link para <strong>Boleto Bancário</strong>. Assim que o pagamento for liquidado pelo banco, seu perfil é ativado automaticamente no portal VetBra.
-                    </p>
-                  </div>
+                  {/* RESUMO DE ATIVAÇÃO: FREE VS PLANOS PAGOS */}
+                  {form.plano === 'BASICO' ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span className="font-bold text-[#147A44]">Conta Gratuita Selecionada — Ativação Imediata:</span>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed">
+                        Nenhum dado de pagamento é solicitado. Ao concluir, seu perfil será <strong>ativado imediatamente</strong> e começará a aparecer no mapa interativo com a indicação <strong>"CRMV Pendente de Verificação"</strong> enquanto seus dados são conferidos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                      <span className="font-bold text-slate-800 block">Forma de Cobrança & Ativação:</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Ao concluir o cadastro, será gerado o código <strong>Pix Copia e Cola</strong> e o link para <strong>Boleto Bancário</strong>. Assim que o pagamento for liquidado pelo banco, seus destaques prioritários são ativados automaticamente.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex justify-between pt-4">
                     <button
@@ -1282,10 +1344,18 @@ function CadastroContent() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#147A44] to-[#1B85B8] hover:from-[#11693A] hover:to-[#16709C] text-white font-bold text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className={`px-8 py-3.5 rounded-2xl text-white font-bold text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+                        form.plano === 'BASICO'
+                          ? 'bg-[#147A44] hover:bg-[#11693A]'
+                          : 'bg-gradient-to-r from-[#147A44] to-[#1B85B8] hover:from-[#11693A] hover:to-[#16709C]'
+                      }`}
                     >
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      {loading ? 'Salvando no Banco de Dados...' : 'Finalizar Cadastro & Gerar Ativação'}
+                      {loading
+                        ? 'Salvando no Banco de Dados...'
+                        : form.plano === 'BASICO'
+                        ? 'Finalizar Cadastro & Ativar Imediatamente Grátis'
+                        : 'Finalizar Cadastro & Gerar Ativação Pix'}
                     </button>
                   </div>
                 </div>

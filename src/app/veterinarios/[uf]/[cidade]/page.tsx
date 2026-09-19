@@ -237,10 +237,17 @@ export default async function CidadeVeterinariosPage({ params }: Props) {
                             {vet.nomeSocialOuClinica}
                           </p>
                         )}
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold">
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          <span>CRMV-{vet.crmvUf} {formatCrmv(vet.crmvNumero, vet.crmvUf)}</span>
-                        </div>
+                        {vet.crmvStatus === 'VERIFICADO' ? (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>CRMV-{vet.crmvUf} {formatCrmv(vet.crmvNumero, vet.crmvUf)}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-bold">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                            <span>CRMV-{vet.crmvUf} {formatCrmv(vet.crmvNumero, vet.crmvUf)} • Pendente</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

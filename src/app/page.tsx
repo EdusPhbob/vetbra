@@ -30,9 +30,9 @@ import {
 export const revalidate = 60; // Regeneração ISR a cada 60s para SEO máximo
 
 export default async function HomePage() {
-  // 1. Total real de veterinários cadastrados com CRMV ativo e verificado
+  // 1. Total real de veterinários cadastrados ativos no portal
   const totalVetsCadastrados = await prisma.veterinario.count({
-    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' }
+    where: { statusGeral: 'ATIVO' }
   });
 
   // 2. Total de animais/pets atendidos = número real de comentários/avaliações recebidas no portal
@@ -101,9 +101,12 @@ export default async function HomePage() {
 
   const vetsDestaque = sortedRawVets.slice(0, 6).map(formatVet);
 
-  // Todos os veterinários verificados para o mapa interativo
+  // Todos os veterinários ativos para o mapa interativo (incluindo CRMV pendente no Free)
   const rawTodosVets = await prisma.veterinario.findMany({
-    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' },
+    where: {
+      statusGeral: 'ATIVO',
+      crmvStatus: { in: ['VERIFICADO', 'PENDENTE', 'EM_ANALISE'] }
+    },
     include: {
       enderecos: true,
       especialidades: { include: { especialidade: true } },
@@ -115,7 +118,10 @@ export default async function HomePage() {
 
   // Novos perfis no VetBra
   const rawNovosVets = await prisma.veterinario.findMany({
-    where: { crmvStatus: 'VERIFICADO', statusGeral: 'ATIVO' },
+    where: {
+      statusGeral: 'ATIVO',
+      crmvStatus: { in: ['VERIFICADO', 'PENDENTE', 'EM_ANALISE'] }
+    },
     include: {
       enderecos: true,
       especialidades: { include: { especialidade: true } }

@@ -413,6 +413,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
           vetsNoRaio.forEach((vet) => {
             const isSelected = selectedVet?.id === vet.id;
 
+            const isPendente = vet.crmvStatus !== 'VERIFICADO';
             const vetIcon = L.divIcon({
               className: 'vet-pin',
               html: `
@@ -436,6 +437,7 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
                 ">
                   <span style="font-size: 14px;">${vet.info.emoji}</span>
                   <span>${vet.nomeCompleto.split(' ')[0]} ${vet.nomeCompleto.split(' ')[1] || ''}</span>
+                  ${isPendente ? `<span style="background: #fef3c7; color: #92400e; font-size: 9px; padding: 1px 5px; border-radius: 9999px; font-weight: 800; border: 1px solid #fcd34d;">CRMV Pendente</span>` : ''}
                 </div>
               `,
               iconSize: [0, 0],
@@ -720,11 +722,33 @@ export default function VetMapExplorer({ vets }: VetMapProps) {
                       <h4 className="text-sm font-bold text-slate-900 leading-tight">
                         {selectedVet.nomeCompleto}
                       </h4>
-                      <span title="CRMV Verificado no CFMV">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                      </span>
+                      {selectedVet.crmvStatus === 'VERIFICADO' ? (
+                        <span title="CRMV Verificado no CFMV">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        </span>
+                      ) : (
+                        <span title="CRMV Pendente de Verificação">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                        </span>
+                      )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+
+                    {/* Badge de CRMV: Verificado vs Pendente de Verificação */}
+                    <div className="mt-1">
+                      {selectedVet.crmvStatus === 'VERIFICADO' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-[#147A44] border border-emerald-200 text-[10px] font-bold">
+                          <ShieldCheck className="w-3 h-3 text-[#147A44]" />
+                          CRMV {selectedVet.crmvNumero}/{selectedVet.crmvUf} Verificado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-bold" title="Cadastro em fase de verificação documental">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          CRMV {selectedVet.crmvNumero}/{selectedVet.crmvUf} • Pendente de Verificação
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${selectedVet.info?.bgClass || 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                         {selectedVet.info?.label || 'Atendimento Veterinário'}
                       </span>

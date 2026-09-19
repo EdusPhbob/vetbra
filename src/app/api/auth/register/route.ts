@@ -63,6 +63,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Preencha todos os campos obrigatórios do profissional e CRMV.' }, { status: 400 });
     }
 
+    if (!fotoPerfilUrl) {
+      return NextResponse.json({ error: 'A foto de perfil profissional é obrigatória para cadastro no VetBra.' }, { status: 400 });
+    }
+
     const crmvLimpo = String(crmvNumero).trim().replace(/\D/g, '');
     if (!crmvLimpo || crmvLimpo.length < 3 || crmvLimpo.length > 7) {
       return NextResponse.json({
@@ -113,19 +117,26 @@ export async function POST(request: Request) {
     // Localiza o plano selecionado no banco
     const planoSlug = plano.toLowerCase().includes('premium') ? 'premium' :
                       plano.toLowerCase().includes('basico') ? 'basico' : 'profissional';
+    const isFree = planoSlug === 'basico';
     
     let planoDb = await prisma.plano.findUnique({ where: { slug: planoSlug } });
     if (!planoDb) {
-      // Fallback
-      planoDb = await prisma.plano.findFirst() || await prisma.plano.create({
+      // Cria plano caso ainda não exista no banco
+      planoDb = await prisma.plano.create({
         data: {
-          slug: 'profissional',
-          nome: 'Plano Profissional',
-          precoMensal: 149.90,
-          limiteEnderecos: 2,
-          destaqueBusca: true,
+          slug: planoSlug,
+          nome: planoSlug === 'basico' ? 'Plano Básico' : (planoSlug === 'premium' ? 'Plano Premium' : 'Plano Profissional'),
+          precoMensal: isFree ? 0 : (planoSlug === 'premium' ? 299.90 : 149.90),
+          limiteEnderecos: planoSlug === 'basico' ? 1 : (planoSlug === 'premium' ? 5 : 2),
+          destaqueBusca: planoSlug !== 'basico',
           ativo: true
         }
+      });
+    } else if (isFree && Number(planoDb.precoMensal) > 0) {
+      // Atualiza plano básico no banco para 0 se anteriormente tinha valor
+      planoDb = await prisma.plano.update({
+        where: { id: planoDb.id },
+        data: { precoMensal: 0, precoAnual: 0 }
       });
     }
 
@@ -255,8 +266,8 @@ export async function POST(request: Request) {
         whatsapp: whatsapp.replace(/\D/g, ''),
         telefone: whatsapp.replace(/\D/g, ''),
         fotoPerfilUrl: fotoPerfilUrl || null,
-        // Anti-fraude & CRMV
-        statusGeral: VetStatusGeral.AGUARDANDO_APROVACAO,
+        // Anti-fraude & CRMV: Se for conta Free, libera direto para o mapa como ATIVO, mantendo CRMV pendente
+        statusGeral: isFree ? VetStatusGeral.ATIVO : VetStatusGeral.AGUARDANDO_APROVACAO,
         crmvNumero: crmvLimpo,
         crmvUf: crmvUf.toUpperCase(),
         crmvValidade: dataValidadeCrmv,
@@ -287,14 +298,14 @@ export async function POST(request: Request) {
             { nome: 'Atendimento Domiciliar Preventivo', categoria: ProcedimentoCategoria.CONSULTA, preco: 220, tempoMedioMinutos: 60 }
           ]
         },
-        // Assinatura e Fatura inicial Pix
+        // Assinatura: Se for Free, ativa imediatamente sem gerar fatura Pix pendente
         assinaturas: {
           create: {
             planoId: planoDb.id,
-            status: AssinaturaStatus.PENDENTE,
+            status: isFree ? AssinaturaStatus.ATIVA : AssinaturaStatus.PENDENTE,
             ciclo: AssinaturaCiclo.MENSAL,
-            valorAtual: valorPlano,
-            faturas: {
+            valorAtual: isFree ? 0 : valorPlano,
+            faturas: isFree ? undefined : {
               create: {
                 numeroFatura,
                 valor: valorPlano,
@@ -320,10 +331,11 @@ export async function POST(request: Request) {
     });
 
     const primeiraAssinatura = vet.assinaturas[0];
-    const primeiraFatura = primeiraAssinatura?.faturas[0];
+    const primeiraFatura = primeiraAssinatura?.faturas?.[0];
 
     return NextResponse.json({
       success: true,
+      isFree,
       user: {
         id: user.id,
         nome: user.nome,
@@ -338,7 +350,7 @@ export async function POST(request: Request) {
         crmvUf: vet.crmvUf,
         crmvStatus: vet.crmvStatus,
         statusGeral: vet.statusGeral,
-        plano: primeiraAssinatura?.plano?.nome || 'Profissional',
+        plano: primeiraAssinatura?.plano?.nome || (isFree ? 'Plano Básico' : 'Profissional'),
         faturaId: primeiraFatura?.id,
         pixCopiaCola: primeiraFatura?.pixCopiaCola
       }

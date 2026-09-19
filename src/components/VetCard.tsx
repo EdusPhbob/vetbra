@@ -33,27 +33,37 @@ export default function VetCard({ vet, isCompared, onToggleCompare }: VetCardPro
       {/* Badge de Destaque / CRMV */}
       <div className="p-5 pb-0">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <a
-            href={getCfmvConsultaUrl(vet.crmvNumero, vet.crmvUf)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => {
-              try {
-                fetch('/api/analytics/crmv-click', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ veterinarioId: vet.id }),
-                  keepalive: true
-                }).catch(() => {});
-              } catch (err) {}
-            }}
-            title="Clique para verificar autenticidade no Portal Oficial CFMV"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-[#147A44] text-[11px] font-bold transition-colors cursor-pointer group/crmv"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#147A44] group-hover/crmv:scale-110 transition-transform" />
-            <span>CRMV {formatCrmv(vet.crmvNumero, vet.crmvUf)} Ativo</span>
-            <ExternalLink className="w-2.5 h-2.5 text-emerald-600 opacity-60" />
-          </a>
+          {vet.crmvStatus === 'VERIFICADO' ? (
+            <a
+              href={getCfmvConsultaUrl(vet.crmvNumero, vet.crmvUf)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                try {
+                  fetch('/api/analytics/crmv-click', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ veterinarioId: vet.id }),
+                    keepalive: true
+                  }).catch(() => {});
+                } catch (err) {}
+              }}
+              title="Clique para verificar autenticidade no Portal Oficial CFMV"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-[#147A44] text-[11px] font-bold transition-colors cursor-pointer group/crmv"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#147A44] group-hover/crmv:scale-110 transition-transform" />
+              <span>CRMV {formatCrmv(vet.crmvNumero, vet.crmvUf)} Verificado</span>
+              <ExternalLink className="w-2.5 h-2.5 text-emerald-600 opacity-60" />
+            </a>
+          ) : (
+            <div
+              title="Cadastro em fase de validação cadastral e documental"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>CRMV {formatCrmv(vet.crmvNumero, vet.crmvUf)} • Pendente de Verificação</span>
+            </div>
+          )}
 
           {vet.atende24h && (
             <span className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-extrabold uppercase">

@@ -21,13 +21,18 @@ async function main() {
   // 1. Planos do SaaS
   const planoBasico = await prisma.plano.upsert({
     where: { slug: 'basico' },
-    update: {},
+    update: {
+      precoMensal: 0,
+      precoAnual: 0,
+      nome: 'Plano Básico (Grátis)',
+      descricao: 'Para veterinários autônomos que desejam presença e agendamentos no mapa sem custos.'
+    },
     create: {
       slug: 'basico',
-      nome: 'Plano Básico',
-      descricao: 'Para veterinários autônomos que desejam presença e agendamentos no mapa.',
-      precoMensal: 79.90,
-      precoAnual: 799.00,
+      nome: 'Plano Básico (Grátis)',
+      descricao: 'Para veterinários autônomos que desejam presença e agendamentos no mapa sem custos.',
+      precoMensal: 0,
+      precoAnual: 0,
       limiteEnderecos: 1,
       destaqueBusca: false,
       relatoriosAvanc: false,
